@@ -1,2 +1,4 @@
 sources:
-  "tycho-0.19.x.tar.bz2": 16e7d2209d1e950d34a82614f82429db91f8f8c4
+  tycho-0.19.x.tar.bz2: 16e7d2209d1e950d34a82614f82429db91f8f8c4
+  tycho-0.19.0-1.0-omv2014.0.noarch.rpm: c911ebd1354fffe103a93a6bdb8f38c859af548a
+  tycho-javadoc-0.19.0-1.0-omv2014.0.noarch.rpm: 9f6e246e6170c1c78a946eb34c68589d380e431f
