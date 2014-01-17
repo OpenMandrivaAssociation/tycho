@@ -37,6 +37,7 @@ Requires:	maven-surefire-plugin
 Requires:	maven-surefire-provider-junit4
 Requires:	objectweb-asm4
 Requires:	osgi(javax.servlet)
+%if 0
 Requires:	osgi(org.eclipse.core.net)
 Requires:	osgi(org.eclipse.core.runtime)
 Requires:	osgi(org.eclipse.equinox.common)
@@ -64,6 +65,7 @@ Requires:	osgi(org.eclipse.jetty.servlet)
 Requires:	osgi(org.eclipse.jetty.util)
 Requires:	osgi(org.eclipse.osgi)
 Requires:	osgi(org.eclipse.platform)
+%endif
 Requires:	osgi(org.junit)
 Requires:	osgi(org.mockito.mockito-core)
 Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.core.shared) = 0.19.0
