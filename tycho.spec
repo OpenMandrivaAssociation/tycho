@@ -1,2321 +1,601 @@
+%{?_javapackages_macros:%_javapackages_macros}
+# Bootstrap build
+# Set this if Tycho and Eclipse are not in buildroot
+%global bootstrap 0
+# When building version under development (non-release)
+# %%global snap -SNAPSHOT
+%global snap %{nil}
 
-%undefine _compress
-%undefine _extension
-%global _duplicate_files_terminate_build 0
-%global _files_listed_twice_terminate_build 0
-%global _unpackaged_files_terminate_build 0
-%global _nonzero_exit_pkgcheck_terminate_build 0
-%global _use_internal_dependency_generator 0
-%global __find_requires /bin/sed -e 's/.*//'
-%global __find_provides /bin/sed -e 's/.*//'
+%define __requires_exclude osgi*
 
-Name:		tycho
-Version:	0.19.0
-Release:	1.0
-License:	GPLv3+
-Source0:	tycho-0.19.0-1.0-omv2014.0.noarch.rpm
-Source1:	tycho-javadoc-0.19.0-1.0-omv2014.0.noarch.rpm
+Name:           tycho
+Version:        0.19.0
+Release:        1.1%{?dist}
+Summary:        Plugins and extensions to build Eclipse plugins and OSGI bundles with Maven
 
-URL:		https://abf.rosalinux.ru/openmandriva/tycho
-BuildArch:	noarch
-Summary:	tycho bootstrap version
-Requires:	javapackages-bootstrap
-Requires:	decentxml
-Requires:	ecj
-Requires:	jpackage-utils
-Requires:	maven-clean-plugin
-Requires:	maven-compiler-plugin
-Requires:	maven-dependency-plugin
-Requires:	maven-deploy-plugin
-Requires:	maven-install-plugin
-Requires:	maven-jar-plugin
-Requires:	maven-local
-Requires:	maven-resources-plugin
-Requires:	maven-shared-verifier
-Requires:	maven-site-plugin
-Requires:	maven-surefire-plugin
-Requires:	maven-surefire-provider-junit4
-Requires:	objectweb-asm4
-Requires:	osgi(javax.servlet)
-%if 0
-Requires:	osgi(org.eclipse.core.net)
-Requires:	osgi(org.eclipse.core.runtime)
-Requires:	osgi(org.eclipse.equinox.common)
-Requires:	osgi(org.eclipse.equinox.ds)
-Requires:	osgi(org.eclipse.equinox.frameworkadmin)
-Requires:	osgi(org.eclipse.equinox.frameworkadmin.equinox)
-Requires:	osgi(org.eclipse.equinox.p2.artifact.repository)
-Requires:	osgi(org.eclipse.equinox.p2.core)
-Requires:	osgi(org.eclipse.equinox.p2.director)
-Requires:	osgi(org.eclipse.equinox.p2.director.app)
-Requires:	osgi(org.eclipse.equinox.p2.engine)
-Requires:	osgi(org.eclipse.equinox.p2.metadata)
-Requires:	osgi(org.eclipse.equinox.p2.metadata.repository)
-Requires:	osgi(org.eclipse.equinox.p2.publisher)
-Requires:	osgi(org.eclipse.equinox.p2.publisher.eclipse)
-Requires:	osgi(org.eclipse.equinox.p2.repository)
-Requires:	osgi(org.eclipse.equinox.p2.repository.tools)
-Requires:	osgi(org.eclipse.equinox.p2.transport.ecf)
-Requires:	osgi(org.eclipse.equinox.p2.updatesite)
-Requires:	osgi(org.eclipse.equinox.security)
-Requires:	osgi(org.eclipse.jetty.http)
-Requires:	osgi(org.eclipse.jetty.security)
-Requires:	osgi(org.eclipse.jetty.server)
-Requires:	osgi(org.eclipse.jetty.servlet)
-Requires:	osgi(org.eclipse.jetty.util)
-Requires:	osgi(org.eclipse.osgi)
-Requires:	osgi(org.eclipse.platform)
+
+# license file is missing but all files having some licensing information are ASL 2.0
+License:        ASL 2.0
+URL:            http://tycho.sonatype.org/
+Source0:        http://git.eclipse.org/c/tycho/org.eclipse.tycho.git/snapshot/tycho-0.19.x.tar.bz2
+
+# this is a workaround for maven-plugin-plugin changes that happened after
+# version 2.4.3 (impossible to have empty mojo created as aggregate). This
+# should be fixed upstream properly
+Source1:        EmptyMojo.java
+# we need to make sure we are using maven 3 deps
+Source2:        depmap.xml
+Source3:        copy-platform-all
+# Bootstrap repo for building when Tycho and Eclipse not built.
+%if %{bootstrap}
+Source4:        maven-repo.tar.xz
 %endif
-Requires:	osgi(org.junit)
-Requires:	osgi(org.mockito.mockito-core)
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.core.shared) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.core.shared.tests) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.embedder.shared) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.noopsecurity) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.p2.maven.repository) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.p2.maven.repository.tests) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.p2.resolver.impl) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.p2.resolver.impl.test) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.p2.resolver.shared) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.p2.tools.impl) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.p2.tools.shared) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.p2.tools.tests) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.surefire.junit) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.surefire.junit4) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.surefire.junit47) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.surefire.osgibooter) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:org.eclipse.tycho.test.utils) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:sisu-equinox) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:sisu-equinox-api) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:sisu-equinox-embedder) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:sisu-equinox-launching) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:sisu-equinox:pom:) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:target-platform-configuration) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-artifactcomparator) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-bundles) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-bundles-external:zip:) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-bundles:pom:) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-compiler-jdt) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-compiler-plugin) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-core) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-embedder-api) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-maven-plugin) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-metadata-model) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-p2) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-p2-director-plugin) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-p2-facade) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-p2-plugin) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-p2-publisher-plugin) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-p2-repository-plugin) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-p2:pom:) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-packaging-plugin) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-pomgenerator-plugin) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-release) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-release:pom:) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-source-plugin) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-standalone-p2-director:zip:) = 0.19.0-SNAPSHOT
-Provides:	mvn(org.eclipse.tycho:tycho-surefire) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-surefire-plugin) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-surefire:pom:) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-testing-harness) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho-versions-plugin) = 0.19.0
-Provides:	mvn(org.eclipse.tycho:tycho:pom:) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.core.shared) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.core.shared.tests) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.embedder.shared) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.noopsecurity) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.p2.maven.repository) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.p2.maven.repository.tests) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.p2.resolver.impl) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.p2.resolver.impl.test) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.p2.resolver.shared) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.p2.tools.impl) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.p2.tools.shared) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.p2.tools.tests) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.surefire.junit) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.surefire.junit4) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.surefire.junit47) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.surefire.osgibooter) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:org.eclipse.tycho.test.utils) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:sisu-equinox) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:sisu-equinox-api) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:sisu-equinox-embedder) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:sisu-equinox-launching) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:sisu-equinox:pom:) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:target-platform-configuration) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-artifactcomparator) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-bundles) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-bundles-external:zip:) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-bundles:pom:) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-compiler-jdt) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-compiler-plugin) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-core) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-embedder-api) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-maven-plugin) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-metadata-model) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-p2) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-p2-director-plugin) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-p2-facade) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-p2-plugin) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-p2-publisher-plugin) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-p2-repository-plugin) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-p2:pom:) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-packaging-plugin) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-pomgenerator-plugin) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-release) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-release:pom:) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-source-plugin) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-standalone-p2-director:zip:) = 0.19.0-SNAPSHOT
-Provides:	mvn(org.sonatype.tycho:tycho-surefire) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-surefire-plugin) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-surefire:pom:) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-testing-harness) = 0.19.0
-Provides:	mvn(org.sonatype.tycho:tycho-versions-plugin) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.core.shared) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.core.shared.tests) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.embedder-api) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.embedder.shared) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.noopsecurity) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.p2.maven.repository) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.p2.maven.repository.tests) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.p2.resolver.impl) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.p2.resolver.impl.test) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.p2.resolver.shared) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.p2.tools.impl) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.p2.tools.shared) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.p2.tools.tests) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.sisu-equinox-api) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.sisu-equinox-launching) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.surefire.junit) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.surefire.junit4) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.surefire.junit47) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.surefire.osgibooter) = 0.19.0
-Provides:	osgi(org.eclipse.tycho.test.utils) = 0.19.0
-Provides:	tycho = 0.19.0-1.0:2014.0
+
+Patch0:         %{name}-fix-build.patch
+# Upstream builds against maven-surefire 2.12.3
+Patch1:         %{name}-maven-surefire.patch
+Patch2:         %{name}-fix-surefire.patch
+Patch3:         %{name}-use-custom-resolver.patch
+# Set some temporary build version so that the bootstrapped build has
+# a different version from the nonbootstrapped. Otherwise there will
+# be cyclic dependencies.
+Patch4:         %{name}-bootstrap.patch
+# Additional changes needed just for bootstrap build
+Patch7:         %{name}-fix-bootstrap-build.patch
+
+BuildArch:      noarch
+
+BuildRequires:  jpackage-utils
+BuildRequires:  java-devel
+BuildRequires:  maven-local
+BuildRequires:  maven-clean-plugin
+BuildRequires:  maven-compiler-plugin
+BuildRequires:  maven-dependency-plugin
+BuildRequires:  maven-install-plugin
+BuildRequires:  maven-jar-plugin
+BuildRequires:  maven-javadoc-plugin
+BuildRequires:  maven-release-plugin
+BuildRequires:  maven-resources-plugin
+BuildRequires:  maven-shared-verifier
+BuildRequires:  maven-shared-osgi
+BuildRequires:  maven-surefire-plugin
+BuildRequires:  maven-surefire-provider-junit
+BuildRequires:  maven-surefire-provider-junit4
+BuildRequires:  objectweb-asm4
+BuildRequires:  plexus-containers-component-metadata
+BuildRequires:  decentxml
+BuildRequires:  easymock3
+BuildRequires:  ecj
+BuildRequires:  maven-plugin-testing-harness
+%if ! %{bootstrap}
+BuildRequires:  osgi(org.eclipse.jdt)
+BuildRequires:  %{name}
+%endif
+BuildRequires:  maven-shared-utils
+BuildRequires:  mockito
+
+Requires:       jpackage-utils
+Requires:       decentxml
+Requires:       maven-local
+Requires:       maven-clean-plugin
+Requires:       maven-dependency-plugin
+Requires:       maven-shared-verifier
+Requires:       maven-surefire-provider-junit4
+Requires:       objectweb-asm4
+Requires:       ecj
+%if ! %{bootstrap}
+Requires:       osgi(org.eclipse.platform)
+%endif
+
+# Tycho always tries to resolve all build plugins, even if they are
+# not needed during Maven lifecycle.  This means that Tycho will try
+# to resolve plugins like clean, deploy or site, which aren't normally
+# used during package build.  See rhbz#971301
+Requires:       maven-clean-plugin
+Requires:       maven-compiler-plugin
+Requires:       maven-deploy-plugin
+Requires:       maven-install-plugin
+Requires:       maven-jar-plugin
+Requires:       maven-resources-plugin
+Requires:       maven-site-plugin
+Requires:       maven-surefire-plugin
+
 
 %description
-tycho bootstrap version.
+Tycho is a set of Maven plugins and extensions for building Eclipse
+plugins and OSGI bundles with Maven. Eclipse plugins and OSGI bundles
+have their own metadata for expressing dependencies, source folder
+locations, etc. that are normally found in a Maven POM. Tycho uses
+native metadata for Eclipse plugins and OSGi bundles and uses the POM
+to configure and drive the build. Tycho supports bundles, fragments,
+features, update site projects and RCP applications. Tycho also knows
+how to run JUnit test plugins using OSGi runtime and there is also
+support for sharing build results using Maven artifact repositories.
 
-%files
-/usr/share/doc/tycho
-/usr/share/doc/tycho/README.md
-/usr/share/java/tycho
-/usr/share/java/tycho/copy-platform-all
-/usr/share/java/tycho/org.eclipse.tycho.core.shared.jar
-/usr/share/java/tycho/org.eclipse.tycho.core.shared.tests.jar
-/usr/share/java/tycho/org.eclipse.tycho.embedder.shared.jar
-/usr/share/java/tycho/org.eclipse.tycho.noopsecurity.jar
-/usr/share/java/tycho/org.eclipse.tycho.p2.maven.repository.jar
-/usr/share/java/tycho/org.eclipse.tycho.p2.maven.repository.tests.jar
-/usr/share/java/tycho/org.eclipse.tycho.p2.resolver.impl.jar
-/usr/share/java/tycho/org.eclipse.tycho.p2.resolver.impl.test.jar
-/usr/share/java/tycho/org.eclipse.tycho.p2.resolver.shared.jar
-/usr/share/java/tycho/org.eclipse.tycho.p2.tools.impl.jar
-/usr/share/java/tycho/org.eclipse.tycho.p2.tools.shared.jar
-/usr/share/java/tycho/org.eclipse.tycho.p2.tools.tests.jar
-/usr/share/java/tycho/org.eclipse.tycho.surefire.junit.jar
-/usr/share/java/tycho/org.eclipse.tycho.surefire.junit4.jar
-/usr/share/java/tycho/org.eclipse.tycho.surefire.junit47.jar
-/usr/share/java/tycho/org.eclipse.tycho.surefire.osgibooter.jar
-/usr/share/java/tycho/org.eclipse.tycho.test.utils.jar
-/usr/share/java/tycho/sisu-equinox-api.jar
-/usr/share/java/tycho/sisu-equinox-embedder.jar
-/usr/share/java/tycho/sisu-equinox-launching.jar
-/usr/share/java/tycho/target-platform-configuration.jar
-/usr/share/java/tycho/tycho-artifactcomparator.jar
-/usr/share/java/tycho/tycho-bundles-external.jar
-/usr/share/java/tycho/tycho-bundles-external.zip
-/usr/share/java/tycho/tycho-compiler-jdt.jar
-/usr/share/java/tycho/tycho-compiler-plugin.jar
-/usr/share/java/tycho/tycho-core.jar
-/usr/share/java/tycho/tycho-embedder-api.jar
-/usr/share/java/tycho/tycho-maven-plugin.jar
-/usr/share/java/tycho/tycho-metadata-model.jar
-/usr/share/java/tycho/tycho-p2-director-plugin.jar
-/usr/share/java/tycho/tycho-p2-facade.jar
-/usr/share/java/tycho/tycho-p2-plugin.jar
-/usr/share/java/tycho/tycho-p2-publisher-plugin.jar
-/usr/share/java/tycho/tycho-p2-repository-plugin.jar
-/usr/share/java/tycho/tycho-packaging-plugin.jar
-/usr/share/java/tycho/tycho-pomgenerator-plugin.jar
-/usr/share/java/tycho/tycho-source-plugin.jar
-/usr/share/java/tycho/tycho-standalone-p2-director.jar
-/usr/share/java/tycho/tycho-standalone-p2-director.zip
-/usr/share/java/tycho/tycho-surefire-plugin.jar
-/usr/share/java/tycho/tycho-testing-harness.jar
-/usr/share/java/tycho/tycho-versions-plugin.jar
-/usr/share/maven-fragments/tycho
-/usr/share/maven-fragments/tycho-zip
-/usr/share/maven-poms/JPP.tycho-main.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.core.shared.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.core.shared.tests.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.embedder.shared.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.noopsecurity.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.p2.maven.repository.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.p2.maven.repository.tests.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.p2.resolver.impl.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.p2.resolver.impl.test.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.p2.resolver.shared.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.p2.tools.impl.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.p2.tools.shared.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.p2.tools.tests.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.surefire.junit.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.surefire.junit4.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.surefire.junit47.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.surefire.osgibooter.pom
-/usr/share/maven-poms/JPP.tycho-org.eclipse.tycho.test.utils.pom
-/usr/share/maven-poms/JPP.tycho-sisu-equinox-api.pom
-/usr/share/maven-poms/JPP.tycho-sisu-equinox-embedder.pom
-/usr/share/maven-poms/JPP.tycho-sisu-equinox-launching.pom
-/usr/share/maven-poms/JPP.tycho-sisu-equinox.pom
-/usr/share/maven-poms/JPP.tycho-target-platform-configuration.pom
-/usr/share/maven-poms/JPP.tycho-tycho-artifactcomparator.pom
-/usr/share/maven-poms/JPP.tycho-tycho-bundles-external.pom
-/usr/share/maven-poms/JPP.tycho-tycho-bundles.pom
-/usr/share/maven-poms/JPP.tycho-tycho-compiler-jdt.pom
-/usr/share/maven-poms/JPP.tycho-tycho-compiler-plugin.pom
-/usr/share/maven-poms/JPP.tycho-tycho-core.pom
-/usr/share/maven-poms/JPP.tycho-tycho-embedder-api.pom
-/usr/share/maven-poms/JPP.tycho-tycho-maven-plugin.pom
-/usr/share/maven-poms/JPP.tycho-tycho-metadata-model.pom
-/usr/share/maven-poms/JPP.tycho-tycho-p2-director-plugin.pom
-/usr/share/maven-poms/JPP.tycho-tycho-p2-facade.pom
-/usr/share/maven-poms/JPP.tycho-tycho-p2-plugin.pom
-/usr/share/maven-poms/JPP.tycho-tycho-p2-publisher-plugin.pom
-/usr/share/maven-poms/JPP.tycho-tycho-p2-repository-plugin.pom
-/usr/share/maven-poms/JPP.tycho-tycho-p2.pom
-/usr/share/maven-poms/JPP.tycho-tycho-packaging-plugin.pom
-/usr/share/maven-poms/JPP.tycho-tycho-pomgenerator-plugin.pom
-/usr/share/maven-poms/JPP.tycho-tycho-release.pom
-/usr/share/maven-poms/JPP.tycho-tycho-source-plugin.pom
-/usr/share/maven-poms/JPP.tycho-tycho-standalone-p2-director.pom
-/usr/share/maven-poms/JPP.tycho-tycho-surefire-plugin.pom
-/usr/share/maven-poms/JPP.tycho-tycho-surefire.pom
-/usr/share/maven-poms/JPP.tycho-tycho-testing-harness.pom
-/usr/share/maven-poms/JPP.tycho-tycho-versions-plugin.pom
+Tycho plugins introduce new packaging types and the corresponding
+lifecycle bindings that allow Maven to use OSGi and Eclipse metadata
+during a Maven build. OSGi rules are used to resolve project
+dependencies and package visibility restrictions are honored by the
+OSGi-aware JDT-based compiler plugin. Tycho will use OSGi metadata and
+OSGi rules to calculate project dependencies dynamically and injects
+them into the Maven project model at build time. Tycho supports all
+attributes supported by the Eclipse OSGi resolver (Require-Bundle,
+Import-Package, Eclipse-GenericRequire, etc). Tycho will use proper
+classpath access rules during compilation. Tycho supports all project
+types supported by PDE and will use PDE/JDT project metadata where
+possible. One important design goal in Tycho is to make sure there is
+no duplication of metadata between POM and OSGi metadata.
 
-#------------------------------------------------------------------------
-%package	-n tycho-javadoc
-Version:	0.19.0
-Release:	1.0
-Summary:	tycho-javadoc bootstrap version
-Requires:	javapackages-bootstrap
-Requires:	jpackage-utils
-Provides:	tycho-javadoc = 0.19.0-1.0:2014.0
 
-%description	-n tycho-javadoc
-tycho-javadoc bootstrap version.
 
-%files		-n tycho-javadoc
-/usr/share/javadoc/tycho
-/usr/share/javadoc/tycho/allclasses-frame.html
-/usr/share/javadoc/tycho/allclasses-noframe.html
-/usr/share/javadoc/tycho/constant-values.html
-/usr/share/javadoc/tycho/copied
-/usr/share/javadoc/tycho/copied/org
-/usr/share/javadoc/tycho/copied/org/apache
-/usr/share/javadoc/tycho/copied/org/apache/maven
-/usr/share/javadoc/tycho/copied/org/apache/maven/plugin
-/usr/share/javadoc/tycho/copied/org/apache/maven/plugin/AbstractCompilerMojo.html
-/usr/share/javadoc/tycho/copied/org/apache/maven/plugin/CompilationFailureException.html
-/usr/share/javadoc/tycho/copied/org/apache/maven/plugin/class-use
-/usr/share/javadoc/tycho/copied/org/apache/maven/plugin/class-use/AbstractCompilerMojo.html
-/usr/share/javadoc/tycho/copied/org/apache/maven/plugin/class-use/CompilationFailureException.html
-/usr/share/javadoc/tycho/copied/org/apache/maven/plugin/package-frame.html
-/usr/share/javadoc/tycho/copied/org/apache/maven/plugin/package-summary.html
-/usr/share/javadoc/tycho/copied/org/apache/maven/plugin/package-tree.html
-/usr/share/javadoc/tycho/copied/org/apache/maven/plugin/package-use.html
-/usr/share/javadoc/tycho/deprecated-list.html
-/usr/share/javadoc/tycho/help-doc.html
-/usr/share/javadoc/tycho/index-all.html
-/usr/share/javadoc/tycho/index.html
-/usr/share/javadoc/tycho/noop
-/usr/share/javadoc/tycho/noop/Noop.html
-/usr/share/javadoc/tycho/noop/class-use
-/usr/share/javadoc/tycho/noop/class-use/Noop.html
-/usr/share/javadoc/tycho/noop/package-frame.html
-/usr/share/javadoc/tycho/noop/package-summary.html
-/usr/share/javadoc/tycho/noop/package-tree.html
-/usr/share/javadoc/tycho/noop/package-use.html
-/usr/share/javadoc/tycho/org
-/usr/share/javadoc/tycho/org/eclipse
-/usr/share/javadoc/tycho/org/eclipse/pde
-/usr/share/javadoc/tycho/org/eclipse/pde/internal
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.BITMAPINFOHEADER.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.CURSORDIR.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.FileFormat.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.ICONRESDIR.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.IMAGE_DATA_DIRECTORY.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.IMAGE_DOS_HEADER.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.IMAGE_FILE_HEADER.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.IMAGE_NT_HEADERS.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.IMAGE_OPTIONAL_HEADER.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.IMAGE_RESOURCE_DATA_ENTRY.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.IMAGE_RESOURCE_DIRECTORY.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.IMAGE_RESOURCE_DIRECTORY_ENTRY.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.IMAGE_SECTION_HEADER.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.IconResInfo.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.NEWHEADER.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.RESDIR.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/IconExe.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.BITMAPINFOHEADER.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.CURSORDIR.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.FileFormat.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.ICONRESDIR.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.IMAGE_DATA_DIRECTORY.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.IMAGE_DOS_HEADER.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.IMAGE_FILE_HEADER.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.IMAGE_NT_HEADERS.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.IMAGE_OPTIONAL_HEADER.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.IMAGE_RESOURCE_DATA_ENTRY.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.IMAGE_RESOURCE_DIRECTORY.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.IMAGE_RESOURCE_DIRECTORY_ENTRY.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.IMAGE_SECTION_HEADER.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.IconResInfo.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.NEWHEADER.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.RESDIR.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/class-use/IconExe.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/pde/internal/swt/tools/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/sisu
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/EquinoxServiceFactory.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/class-use
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/class-use/EquinoxServiceFactory.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/EmbeddedEquinox.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/EquinoxLifecycleListener.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/EquinoxRuntimeLocator.EquinoxRuntimeDescription.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/EquinoxRuntimeLocator.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/class-use
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/class-use/EmbeddedEquinox.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/class-use/EquinoxLifecycleListener.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/class-use/EquinoxRuntimeLocator.EquinoxRuntimeDescription.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/class-use/EquinoxRuntimeLocator.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/internal
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/internal/DefaultEquinoxEmbedder.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/internal/EquinoxEmbedderException.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/internal/class-use
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/internal/class-use/DefaultEquinoxEmbedder.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/internal/class-use/EquinoxEmbedderException.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/internal/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/internal/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/internal/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/internal/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/embedder/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/BundleStartLevel.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/DefaultEquinoxInstallationDescription.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/EquinoxInstallation.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/EquinoxInstallationDescription.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/EquinoxInstallationFactory.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/EquinoxLauncher.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/EquinoxLaunchingException.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/class-use
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/class-use/BundleStartLevel.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/class-use/DefaultEquinoxInstallationDescription.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/class-use/EquinoxInstallation.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/class-use/EquinoxInstallationDescription.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/class-use/EquinoxInstallationFactory.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/class-use/EquinoxLauncher.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/class-use/EquinoxLaunchingException.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/DefaultEquinoxInstallation.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/DefaultEquinoxInstallationFactory.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/DefaultEquinoxLauncher.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/EquinoxInstallationLaunchConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/EquinoxLaunchConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/P2ApplicationLauncher.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/class-use
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/class-use/DefaultEquinoxInstallation.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/class-use/DefaultEquinoxInstallationFactory.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/class-use/DefaultEquinoxLauncher.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/class-use/EquinoxInstallationLaunchConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/class-use/EquinoxLaunchConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/class-use/P2ApplicationLauncher.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/internal/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/launching/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/sisu/equinox/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho
-/usr/share/javadoc/tycho/org/eclipse/tycho/ArtifactDescriptor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/ArtifactKey.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/BuildOutputDirectory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/ReactorProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/ReactorProjectCoordinates.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifactcomparator
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifactcomparator/ArtifactComparator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifactcomparator/ArtifactDelta.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifactcomparator/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifactcomparator/class-use/ArtifactComparator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifactcomparator/class-use/ArtifactDelta.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifactcomparator/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifactcomparator/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifactcomparator/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifactcomparator/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/DependencyArtifacts.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/TargetPlatform.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/TargetPlatformFilter.CapabilityPattern.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/TargetPlatformFilter.CapabilityType.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/TargetPlatformFilter.FilterAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/TargetPlatformFilter.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/TargetPlatformFilterSyntaxException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/class-use/DependencyArtifacts.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/class-use/TargetPlatform.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/class-use/TargetPlatformFilter.CapabilityPattern.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/class-use/TargetPlatformFilter.CapabilityType.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/class-use/TargetPlatformFilter.FilterAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/class-use/TargetPlatformFilter.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/class-use/TargetPlatformFilterSyntaxException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/configuration
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/configuration/TargetPlatformFilterConfigurationReader.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/configuration/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/configuration/class-use/TargetPlatformFilterConfigurationReader.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/configuration/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/configuration/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/configuration/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/configuration/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/p2
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/p2/P2TargetPlatform.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/p2/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/p2/class-use/P2TargetPlatform.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/p2/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/p2/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/p2/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/p2/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/artifacts/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/AbstractVersionMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/BuildQualifierAggregatorMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/BuildQualifierMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/BuildTimestampProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/DefaultBuildTimestampProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/ValidateIdMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/ValidateVersionMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/VersioningHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/class-use/AbstractVersionMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/class-use/BuildQualifierAggregatorMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/class-use/BuildQualifierMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/class-use/BuildTimestampProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/class-use/DefaultBuildTimestampProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/class-use/ValidateIdMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/class-use/ValidateVersionMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/class-use/VersioningHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/buildversion/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/class-use/ArtifactDescriptor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/class-use/ArtifactKey.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/class-use/BuildOutputDirectory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/class-use/ReactorProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/class-use/ReactorProjectCoordinates.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/classpath
-/usr/share/javadoc/tycho/org/eclipse/tycho/classpath/ClasspathEntry.AccessRule.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/classpath/ClasspathEntry.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/classpath/JavaCompilerConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/classpath/SourcepathEntry.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/classpath/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/classpath/class-use/ClasspathEntry.AccessRule.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/classpath/class-use/ClasspathEntry.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/classpath/class-use/JavaCompilerConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/classpath/class-use/SourcepathEntry.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/classpath/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/classpath/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/classpath/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/classpath/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/AbstractOsgiCompilerMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/CopyMapping.SourceTargetPair.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/CopyMapping.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/OsgiCompilerMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/class-use/AbstractOsgiCompilerMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/class-use/CopyMapping.SourceTargetPair.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/class-use/CopyMapping.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/class-use/OsgiCompilerMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/jdt
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/jdt/JDTCompiler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/jdt/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/jdt/class-use/JDTCompiler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/jdt/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/jdt/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/jdt/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/jdt/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/compiler/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ArtifactDependencyVisitor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ArtifactDependencyWalker.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/BundleProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/DependencyResolverConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/FeatureDescription.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/PluginDescription.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/TargetPlatformConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/TargetPlatformResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/TychoConstants.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/TychoProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/class-use/ArtifactDependencyVisitor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/class-use/ArtifactDependencyWalker.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/class-use/BundleProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/class-use/DependencyResolverConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/class-use/FeatureDescription.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/class-use/PluginDescription.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/class-use/TargetPlatformConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/class-use/TargetPlatformResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/class-use/TychoConstants.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/class-use/TychoProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/CustomExecutionEnvironment.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/EEVersion.EEType.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/EEVersion.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/ExecutionEnvironmentConfigurationImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/ExecutionEnvironmentUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/StandardExecutionEnvironment.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/UnknownEnvironmentException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/class-use/CustomExecutionEnvironment.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/class-use/EEVersion.EEType.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/class-use/EEVersion.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/class-use/ExecutionEnvironmentConfigurationImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/class-use/ExecutionEnvironmentUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/class-use/StandardExecutionEnvironment.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/class-use/UnknownEnvironmentException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/ExecutionEnvironment.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/ExecutionEnvironmentConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/ExecutionEnvironmentConfigurationStub.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/SystemCapability.Type.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/SystemCapability.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/class-use/ExecutionEnvironment.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/class-use/ExecutionEnvironmentConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/class-use/ExecutionEnvironmentConfigurationStub.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/class-use/SystemCapability.Type.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/class-use/SystemCapability.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/ee/shared/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/BuildProperties.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/BuildPropertiesImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/BuildPropertiesImplTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/BuildPropertiesParser.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/LRUCache.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/LRUCacheTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/MavenContext.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/MavenContextImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/MavenLogger.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/MultiLineLogger.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/ProxyServiceFacade.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/TargetEnvironment.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/TargetEnvironmentTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/class-use/BuildProperties.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/class-use/BuildPropertiesImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/class-use/BuildPropertiesImplTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/class-use/BuildPropertiesParser.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/class-use/LRUCache.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/class-use/LRUCacheTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/class-use/MavenContext.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/class-use/MavenContextImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/class-use/MavenLogger.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/class-use/MultiLineLogger.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/class-use/ProxyServiceFacade.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/class-use/TargetEnvironment.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/class-use/TargetEnvironmentTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/facade/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/locking
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/locking/FileLockServiceImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/locking/FileLockerImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/locking/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/locking/class-use/FileLockServiceImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/locking/class-use/FileLockerImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/locking/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/locking/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/locking/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/locking/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/MavenDependencyCollector.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/MavenDependencyInjector.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/TychoMavenLifecycleParticipant.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/class-use/MavenDependencyCollector.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/class-use/MavenDependencyInjector.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/class-use/TychoMavenLifecycleParticipant.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/utils
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/utils/MavenCompatiblityHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/utils/PluginRealmHelper.PluginFilter.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/utils/PluginRealmHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/utils/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/utils/class-use/MavenCompatiblityHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/utils/class-use/PluginRealmHelper.PluginFilter.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/utils/class-use/PluginRealmHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/utils/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/utils/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/utils/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/maven/utils/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/AbstractArtifactBasedProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/AbstractArtifactDependencyWalker.WalkbackPath.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/AbstractArtifactDependencyWalker.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/AbstractTychoProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/BuildPropertiesParserImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/BundleReader.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/DebugUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/DefaultArtifactDescriptor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/DefaultArtifactKey.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/DefaultBundleReader.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/DefaultClasspathEntry.DefaultAccessRule.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/DefaultClasspathEntry.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/DefaultFeatureDescription.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/DefaultPluginDescription.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/DefaultReactorProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/DependencyComputer.DependencyEntry.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/DependencyComputer.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/EclipseApplicationProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/EclipseFeatureProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/EclipseRepositoryProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/EquinoxResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/InvalidOSGiManifestException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/OsgiBundleProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/OsgiManifest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/OsgiManifestParserException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/OsgiTestBundleProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/StandalonePluginConverter.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/UpdateSiteProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/AbstractArtifactBasedProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/AbstractArtifactDependencyWalker.WalkbackPath.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/AbstractArtifactDependencyWalker.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/AbstractTychoProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/BuildPropertiesParserImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/BundleReader.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/DebugUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/DefaultArtifactDescriptor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/DefaultArtifactKey.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/DefaultBundleReader.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/DefaultClasspathEntry.DefaultAccessRule.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/DefaultClasspathEntry.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/DefaultFeatureDescription.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/DefaultPluginDescription.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/DefaultReactorProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/DependencyComputer.DependencyEntry.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/DependencyComputer.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/EclipseApplicationProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/EclipseFeatureProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/EclipseRepositoryProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/EquinoxResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/InvalidOSGiManifestException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/OsgiBundleProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/OsgiManifest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/OsgiManifestParserException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/OsgiTestBundleProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/StandalonePluginConverter.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/class-use/UpdateSiteProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/project
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/project/BuildOutputJar.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/project/EclipsePluginProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/project/EclipsePluginProjectImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/project/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/project/class-use/BuildOutputJar.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/project/class-use/EclipsePluginProject.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/project/class-use/EclipsePluginProjectImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/project/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/project/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/project/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/project/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/AbstractTargetPlatformResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/BasicDependencyArtifacts.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/DefaultTargetPlatform.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/EclipseInstallationLayout.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/LocalTargetPlatformResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/MultiEnvironmentTargetPlatform.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/class-use/AbstractTargetPlatformResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/class-use/BasicDependencyArtifacts.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/class-use/DefaultTargetPlatform.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/class-use/EclipseInstallationLayout.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/class-use/LocalTargetPlatformResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/class-use/MultiEnvironmentTargetPlatform.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/osgitools/targetplatform/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/p2
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/p2/P2ArtifactRepositoryLayout.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/p2/P2RepositoryConnector.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/p2/P2RepositoryConnectorFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/p2/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/p2/class-use/P2ArtifactRepositoryLayout.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/p2/class-use/P2RepositoryConnector.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/p2/class-use/P2RepositoryConnectorFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/p2/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/p2/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/p2/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/p2/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/DefaultTargetPlatformConfigurationReader.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/DefaultTargetPlatformResolverFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/DefaultTychoDependencyResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/class-use/DefaultTargetPlatformConfigurationReader.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/class-use/DefaultTargetPlatformResolverFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/class-use/DefaultTychoDependencyResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/MavenRepositoryLocation.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/MavenRepositorySettings.Credentials.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/MavenRepositorySettings.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/OptionalResolutionAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/PlatformPropertiesUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/class-use/MavenRepositoryLocation.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/class-use/MavenRepositorySettings.Credentials.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/class-use/MavenRepositorySettings.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/class-use/OptionalResolutionAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/class-use/PlatformPropertiesUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/resolver/shared/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/utils
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/utils/MavenSessionUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/utils/TychoProjectUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/utils/TychoVersion.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/utils/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/utils/class-use/MavenSessionUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/utils/class-use/TychoProjectUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/utils/class-use/TychoVersion.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/utils/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/utils/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/utils/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/core/utils/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/dev
-/usr/share/javadoc/tycho/org/eclipse/tycho/dev/DevBundleInfo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/dev/DevWorkspaceResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/dev/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/dev/class-use/DevBundleInfo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/dev/class-use/DevWorkspaceResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/dev/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/dev/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/dev/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/dev/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/launching
-/usr/share/javadoc/tycho/org/eclipse/tycho/launching/LaunchConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/launching/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/launching/class-use/LaunchConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/launching/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/launching/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/launching/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/launching/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/locking
-/usr/share/javadoc/tycho/org/eclipse/tycho/locking/facade
-/usr/share/javadoc/tycho/org/eclipse/tycho/locking/facade/FileLockService.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/locking/facade/FileLocker.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/locking/facade/LockTimeoutException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/locking/facade/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/locking/facade/class-use/FileLockService.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/locking/facade/class-use/FileLocker.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/locking/facade/class-use/LockTimeoutException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/locking/facade/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/locking/facade/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/locking/facade/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/locking/facade/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/BundleConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/Category.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/Feature.ImportRef.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/Feature.RequiresRef.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/Feature.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/FeatureRef.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/Launcher.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/Platform.Feature.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/Platform.Site.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/Platform.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/PluginRef.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/ProductConfiguration.ConfigIni.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/ProductConfiguration.ConfigurationProperty.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/ProductConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/UpdateSite.SiteFeatureRef.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/UpdateSite.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/BundleConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/Category.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/Feature.ImportRef.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/Feature.RequiresRef.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/Feature.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/FeatureRef.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/Launcher.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/Platform.Feature.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/Platform.Site.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/Platform.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/PluginRef.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/ProductConfiguration.ConfigIni.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/ProductConfiguration.ConfigurationProperty.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/ProductConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/UpdateSite.SiteFeatureRef.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/class-use/UpdateSite.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/model/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/adapters
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/adapters/MavenLoggerAdapter.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/adapters/MavenReactorProjectCoordinates.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/adapters/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/adapters/class-use/MavenLoggerAdapter.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/adapters/class-use/MavenReactorProjectCoordinates.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/adapters/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/adapters/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/adapters/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/adapters/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/BuildPropertiesParserConfigurator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/FileLockServiceConfigurator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/MavenContextConfigurator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/OSGiProxyConfigurator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/RepositorySettingsConfigurator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/SettingsDecrypterHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/class-use/BuildPropertiesParserConfigurator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/class-use/FileLockServiceConfigurator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/class-use/MavenContextConfigurator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/class-use/OSGiProxyConfigurator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/class-use/RepositorySettingsConfigurator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/class-use/SettingsDecrypterHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/configuration/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/runtime
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/runtime/TychoOsgiRuntimeArtifacts.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/runtime/TychoOsgiRuntimeLocator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/runtime/TychoOsgiRuntimeMainArtifacts.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/runtime/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/runtime/class-use/TychoOsgiRuntimeArtifacts.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/runtime/class-use/TychoOsgiRuntimeLocator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/runtime/class-use/TychoOsgiRuntimeMainArtifacts.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/runtime/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/runtime/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/runtime/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/osgi/runtime/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/RepositoryReferenceTool.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/class-use/RepositoryReferenceTool.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/internal
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/internal/ArtifactFacade.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/internal/AttachedArtifact.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/internal/ReactorArtifactFacade.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/internal/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/internal/class-use/ArtifactFacade.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/internal/class-use/AttachedArtifact.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/internal/class-use/ReactorArtifactFacade.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/internal/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/internal/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/internal/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/internal/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/facade/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/Activator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/class-use/Activator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/proxy
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/proxy/ProxyServiceFacadeImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/proxy/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/proxy/class-use/ProxyServiceFacadeImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/proxy/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/proxy/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/proxy/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/proxy/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/AbstractDependenciesAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/AbstractMetadataGenerator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/AbstractSiteDependenciesAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/BundleDependenciesAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/CategoryDependenciesAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/DefaultDependencyMetadataGenerator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/DependencyMetadata.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/FeatureDependenciesAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/MavenPropertiesAdvice.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/MavenPropertiesAdviceTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/P2Artifact.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/P2DependencyGeneratorImplTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/P2GeneratorImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/ProductDependenciesAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/SiteDependenciesAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/SourcesBundleDependencyMetadataGenerator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/AbstractDependenciesAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/AbstractMetadataGenerator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/AbstractSiteDependenciesAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/BundleDependenciesAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/CategoryDependenciesAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/DefaultDependencyMetadataGenerator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/DependencyMetadata.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/FeatureDependenciesAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/MavenPropertiesAdvice.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/MavenPropertiesAdviceTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/P2Artifact.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/P2DependencyGeneratorImplTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/P2GeneratorImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/ProductDependenciesAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/SiteDependenciesAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/class-use/SourcesBundleDependencyMetadataGenerator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/model
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/model/ProductFile2.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/model/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/model/class-use/ProductFile2.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/model/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/model/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/model/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/model/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/repo
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/repo/FeatureRootfileArtifactRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/repo/FeatureRootfileArtifactRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/repo/TransientArtifactRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/repo/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/repo/class-use/FeatureRootfileArtifactRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/repo/class-use/FeatureRootfileArtifactRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/repo/class-use/TransientArtifactRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/repo/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/repo/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/repo/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/repo/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/AbstractFileSet.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/ConfigSpec.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/FeatureRootAdvice.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/FeatureRootAdviceFilesTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/FeatureRootAdviceLinksTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/FeatureRootAdvicePermissionsTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/FeatureRootAdviceTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/FileSet.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/FileSetTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/FileToPathMap.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/FileToPathMapTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/RootFilePathTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/RootFilePatternParser.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/RootFilesProperties.Permission.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/RootFilesProperties.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/RootPropertiesParser.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/VirtualFileSet.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/VirtualFileSetTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/AbstractFileSet.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/ConfigSpec.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/FeatureRootAdvice.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/FeatureRootAdviceFilesTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/FeatureRootAdviceLinksTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/FeatureRootAdvicePermissionsTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/FeatureRootAdviceTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/FileSet.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/FileSetTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/FileToPathMap.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/FileToPathMapTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/RootFilePathTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/RootFilePatternParser.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/RootFilesProperties.Permission.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/RootFilesProperties.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/RootPropertiesParser.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/VirtualFileSet.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/class-use/VirtualFileSetTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/publisher/rootfiles/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/repo
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/repo/MetadataSerializableImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/repo/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/repo/class-use/MetadataSerializableImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/repo/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/repo/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/repo/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/repo/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/ClassifiedLocation.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/DefaultP2ResolutionResult.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/DefaultP2ResolutionResultEntry.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/DuplicateReactorIUsException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/MetadataOnlyP2ResolutionResult.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/P2ResolutionException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/P2ResolverAdditionalRequirementsTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/P2ResolverFactoryImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/P2ResolverImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/P2ResolverTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/P2ResolverTestBase.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/class-use/ClassifiedLocation.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/class-use/DefaultP2ResolutionResult.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/class-use/DefaultP2ResolutionResultEntry.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/class-use/DuplicateReactorIUsException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/class-use/MetadataOnlyP2ResolutionResult.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/class-use/P2ResolutionException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/class-use/P2ResolverAdditionalRequirementsTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/class-use/P2ResolverFactoryImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/class-use/P2ResolverImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/class-use/P2ResolverTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/class-use/P2ResolverTestBase.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/resolver/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/ArtifactMock.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/ConsoleProgressMonitor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/P2MetadataGeneratorImplTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/ResourceUtil.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/VersionCreateTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/class-use/ArtifactMock.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/class-use/ConsoleProgressMonitor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/class-use/P2MetadataGeneratorImplTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/class-use/ResourceUtil.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/class-use/VersionCreateTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/impl/test/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/AbstractMavenMetadataRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/AbstractMetadataRepository2.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/Activator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/MavenMetadataRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/class-use/AbstractMavenMetadataRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/class-use/AbstractMetadataRepository2.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/class-use/Activator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/class-use/MavenMetadataRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/tests
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/tests/ResourceUtil.P2Repositories.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/tests/ResourceUtil.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/tests/TestRepositoryContent.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/tests/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/tests/class-use/ResourceUtil.P2Repositories.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/tests/class-use/ResourceUtil.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/tests/class-use/TestRepositoryContent.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/tests/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/tests/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/tests/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/tests/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio/ArtifactsIO.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio/MetadataIO.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio/class-use/ArtifactsIO.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio/class-use/MetadataIO.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/SimpleArtifactRepositoryIO.Parser.ArtifactHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/SimpleArtifactRepositoryIO.Parser.ArtifactsHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/SimpleArtifactRepositoryIO.Parser.MappingRuleHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/SimpleArtifactRepositoryIO.Parser.MappingRulesHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/SimpleArtifactRepositoryIO.Parser.ProcessingStepHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/SimpleArtifactRepositoryIO.Parser.ProcessingStepsHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/SimpleArtifactRepositoryIO.Parser.RepositoryDocHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/SimpleArtifactRepositoryIO.Parser.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/SimpleArtifactRepositoryIO.Writer.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/SimpleArtifactRepositoryIO.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/class-use/SimpleArtifactRepositoryIO.Parser.ArtifactHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/class-use/SimpleArtifactRepositoryIO.Parser.ArtifactsHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/class-use/SimpleArtifactRepositoryIO.Parser.MappingRuleHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/class-use/SimpleArtifactRepositoryIO.Parser.MappingRulesHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/class-use/SimpleArtifactRepositoryIO.Parser.ProcessingStepHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/class-use/SimpleArtifactRepositoryIO.Parser.ProcessingStepsHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/class-use/SimpleArtifactRepositoryIO.Parser.RepositoryDocHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/class-use/SimpleArtifactRepositoryIO.Parser.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/class-use/SimpleArtifactRepositoryIO.Writer.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/class-use/SimpleArtifactRepositoryIO.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/maven/repository/xmlio35/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/DependencyMetadataGenerator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/IArtifactFacade.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/IDependencyMetadata.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/IP2Artifact.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/IReactorArtifactFacade.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/MetadataSerializable.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/P2Generator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/class-use/DependencyMetadataGenerator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/class-use/IArtifactFacade.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/class-use/IDependencyMetadata.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/class-use/IP2Artifact.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/class-use/IReactorArtifactFacade.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/class-use/MetadataSerializable.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/class-use/P2Generator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/metadata/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/publisher
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/publisher/P2GeneratorImplTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/publisher/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/publisher/class-use/P2GeneratorImplTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/publisher/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/publisher/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/publisher/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/publisher/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/IRepositoryIdManager.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/RemoteAgent.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/RemoteAgentCompositeLoadingTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/RemoteAgentDisableP2MirrorsTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/RemoteAgentManager.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/RemoteAgentMavenMirrorsTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/RemoteAgentMetadataRepositoryCacheTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/class-use/IRepositoryIdManager.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/class-use/RemoteAgent.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/class-use/RemoteAgentCompositeLoadingTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/class-use/RemoteAgentDisableP2MirrorsTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/class-use/RemoteAgentManager.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/class-use/RemoteAgentMavenMirrorsTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/class-use/RemoteAgentMetadataRepositoryCacheTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/testutil
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/testutil/NoopRepositoryIdManager.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/testutil/NoopRepositoryIdManagerFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/testutil/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/testutil/class-use/NoopRepositoryIdManager.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/testutil/class-use/NoopRepositoryIdManagerFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/testutil/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/testutil/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/testutil/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/remote/testutil/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repo
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repo/MetadataSerializableImplTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repo/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repo/class-use/MetadataSerializableImplTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repo/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repo/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repo/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repo/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/DefaultTychoRepositoryIndex.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/GAV.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/LocalRepositoryP2Indices.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/LocalRepositoryReader.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/MavenRepositoryCoordinates.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/RepositoryLayoutHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/RepositoryReader.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/TychoRepositoryIndex.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/class-use/DefaultTychoRepositoryIndex.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/class-use/GAV.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/class-use/LocalRepositoryP2Indices.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/class-use/LocalRepositoryReader.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/class-use/MavenRepositoryCoordinates.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/class-use/RepositoryLayoutHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/class-use/RepositoryReader.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/class-use/TychoRepositoryIndex.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/repository/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/AbstractResolutionStrategy.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/DependencyCollector.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/DependencyCollectorTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/ExecutionEnvironmentResolutionHints.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/P2MetadataProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/P2TargetPlatformResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/PomDependencyProcessor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/ProjectorResolutionStrategy.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/ProjectorResolutionStrategyTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/QueryableCollection.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/ResolutionData.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/ResolutionDataImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/SlicerResolutionStrategy.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/TargetDefinitionFile.IULocation.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/TargetDefinitionFile.OtherLocation.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/TargetDefinitionFile.Repository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/TargetDefinitionFile.Unit.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/TargetDefinitionFile.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/AbstractResolutionStrategy.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/DependencyCollector.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/DependencyCollectorTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/ExecutionEnvironmentResolutionHints.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/P2MetadataProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/P2TargetPlatformResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/PomDependencyProcessor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/ProjectorResolutionStrategy.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/ProjectorResolutionStrategyTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/QueryableCollection.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/ResolutionData.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/ResolutionDataImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/SlicerResolutionStrategy.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/TargetDefinitionFile.IULocation.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/TargetDefinitionFile.OtherLocation.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/TargetDefinitionFile.Repository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/TargetDefinitionFile.Unit.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/class-use/TargetDefinitionFile.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/facade
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/facade/P2ResolutionResult.Entry.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/facade/P2ResolutionResult.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/facade/P2Resolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/facade/P2ResolverFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/facade/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/facade/class-use/P2ResolutionResult.Entry.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/facade/class-use/P2ResolutionResult.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/facade/class-use/P2Resolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/facade/class-use/P2ResolverFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/facade/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/facade/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/facade/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/facade/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/resolver/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ExecutionEnvironmentTestUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/PomDependencyCollectorImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/PomDependencyCollectorTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/TargetDefinitionContent.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/TargetDefinitionResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/TargetDefinitionResolverExecutionEnvironmentTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/TargetDefinitionResolverIncludeModeTests.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/TargetDefinitionResolverService.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/TargetDefinitionResolverTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/TargetDefinitionResolverWithPlatformSpecificUnitsTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/TargetPlatformBundlePublisher.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/TargetPlatformBundlePublisherTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/TargetPlatformFactoryImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/TargetPlatformFactoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/TargetPlatformImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/TestResolverFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/ExecutionEnvironmentTestUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/PomDependencyCollectorImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/PomDependencyCollectorTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/TargetDefinitionContent.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/TargetDefinitionResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/TargetDefinitionResolverExecutionEnvironmentTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/TargetDefinitionResolverIncludeModeTests.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/TargetDefinitionResolverService.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/TargetDefinitionResolverTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/TargetDefinitionResolverWithPlatformSpecificUnitsTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/TargetPlatformBundlePublisher.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/TargetPlatformBundlePublisherTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/TargetPlatformFactoryImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/TargetPlatformFactoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/TargetPlatformImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/class-use/TestResolverFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/CustomEEResolutionHandlerTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/CustomEEResolutionHints.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/CustomEEResolutionHintsTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/ExecutionEnvironmentResolutionHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/InvalidEENameException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/StandardEEResolutionHints.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/class-use/CustomEEResolutionHandlerTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/class-use/CustomEEResolutionHints.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/class-use/CustomEEResolutionHintsTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/class-use/ExecutionEnvironmentResolutionHandler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/class-use/InvalidEENameException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/class-use/StandardEEResolutionHints.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/ee/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/PomDependencyCollector.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/TargetDefinition.IncludeMode.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/TargetDefinition.InstallableUnitLocation.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/TargetDefinition.Location.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/TargetDefinition.Repository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/TargetDefinition.Unit.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/TargetDefinition.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/TargetDefinitionResolutionException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/TargetDefinitionSyntaxException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/TargetPlatformConfigurationStub.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/TargetPlatformFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/class-use/PomDependencyCollector.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/class-use/TargetDefinition.IncludeMode.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/class-use/TargetDefinition.InstallableUnitLocation.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/class-use/TargetDefinition.Location.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/class-use/TargetDefinition.Repository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/class-use/TargetDefinition.Unit.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/class-use/TargetDefinition.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/class-use/TargetDefinitionResolutionException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/class-use/TargetDefinitionSyntaxException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/class-use/TargetPlatformConfigurationStub.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/class-use/TargetPlatformFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/facade/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/filters
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/filters/TargetPlatformFilterEvaluator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/filters/TargetPlatformFilterEvaluatorTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/filters/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/filters/class-use/TargetPlatformFilterEvaluator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/filters/class-use/TargetPlatformFilterEvaluatorTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/filters/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/filters/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/filters/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/filters/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/target/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/testutil
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/testutil/InstallableUnitMatchers.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/testutil/InstallableUnitUtil.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/testutil/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/testutil/class-use/InstallableUnitMatchers.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/testutil/class-use/InstallableUnitUtil.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/testutil/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/testutil/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/testutil/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/testutil/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/BuildContext.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/DestinationRepositoryDescriptor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/FacadeException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/RepositoryReferences.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/BaselineServiceImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/class-use/BaselineServiceImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/facade
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/facade/BaselineService.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/facade/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/facade/class-use/BaselineService.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/facade/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/facade/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/facade/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/facade/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/baseline/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/class-use/BuildContext.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/class-use/DestinationRepositoryDescriptor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/class-use/FacadeException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/class-use/RepositoryReferences.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/DirectorApplicationCommandTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/DirectorApplicationWrapper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/class-use/DirectorApplicationCommandTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/class-use/DirectorApplicationWrapper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/shared
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/shared/AbstractDirectorApplicationCommand.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/shared/DirectorCommandException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/shared/DirectorRuntime.Command.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/shared/DirectorRuntime.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/shared/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/shared/class-use/AbstractDirectorApplicationCommand.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/shared/class-use/DirectorCommandException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/shared/class-use/DirectorRuntime.Command.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/shared/class-use/DirectorRuntime.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/shared/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/shared/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/shared/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/director/shared/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/impl
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/impl/Activator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/impl/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/impl/class-use/Activator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/impl/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/impl/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/impl/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/impl/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/MirrorApplication.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/MirrorApplicationServiceImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/MirrorApplicationServiceTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/MirrorStandaloneTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/class-use/MirrorApplication.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/class-use/MirrorApplicationServiceImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/class-use/MirrorApplicationServiceTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/class-use/MirrorStandaloneTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/facade
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/facade/IUDescription.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/facade/MirrorApplicationService.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/facade/MirrorOptions.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/facade/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/facade/class-use/IUDescription.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/facade/class-use/MirrorApplicationService.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/facade/class-use/MirrorOptions.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/facade/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/facade/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/facade/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/facade/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/mirroring/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/ProductBinariesWriteSession.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/PublisherServiceFactoryImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/PublisherServiceFactoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/PublisherServiceTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/ResultSpyAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/class-use/ProductBinariesWriteSession.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/class-use/PublisherServiceFactoryImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/class-use/PublisherServiceFactoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/class-use/PublisherServiceTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/class-use/ResultSpyAction.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/facade
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/facade/PublisherService.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/facade/PublisherServiceFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/facade/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/facade/class-use/PublisherService.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/facade/class-use/PublisherServiceFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/facade/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/facade/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/facade/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/facade/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/publisher/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/RepositoryReferencesTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/class-use/RepositoryReferencesTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/util
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/util/ResourceUtil.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/util/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/util/class-use/ResourceUtil.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/util/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/util/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/util/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/test/util/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verfier
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verfier/VerifierServiceImplTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verfier/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verfier/class-use/VerifierServiceImplTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verfier/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verfier/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verfier/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verfier/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/VerifierServiceImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/class-use/VerifierServiceImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/facade
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/facade/VerifierService.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/facade/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/facade/class-use/VerifierService.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/facade/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/facade/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/facade/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/facade/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/p2/tools/verifier/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/AbstractTychoPackagingMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/FeatureXmlTransformer.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/IncludeValidationHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/LicenseFeatureHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/PackageFeatureMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/PackagePluginMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/PackageTargetDefinitionMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/PackageUpdateSiteMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/ProductAssembler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/ProductExportMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/SourceReferences.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/UpdateSiteAssembler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/UpdateSiteMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/class-use/AbstractTychoPackagingMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/class-use/FeatureXmlTransformer.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/class-use/IncludeValidationHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/class-use/LicenseFeatureHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/class-use/PackageFeatureMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/class-use/PackagePluginMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/class-use/PackageTargetDefinitionMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/class-use/PackageUpdateSiteMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/class-use/ProductAssembler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/class-use/ProductExportMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/class-use/SourceReferences.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/class-use/UpdateSiteAssembler.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/class-use/UpdateSiteMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/sourceref
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/sourceref/ScmUrl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/sourceref/SourceReferenceComputer.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/sourceref/SourceReferencesProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/sourceref/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/sourceref/class-use/ScmUrl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/sourceref/class-use/SourceReferenceComputer.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/sourceref/class-use/SourceReferencesProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/sourceref/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/sourceref/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/sourceref/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/packaging/sourceref/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/AbstractP2MetadataMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/BaselineMode.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/BaselineReplace.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/BaselineValidator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/CategoryP2MetadataMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/FeatureP2MetadataMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/P2MetadataDefaultMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/P2MetadataMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/Repository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/UpdateLocalIndexMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/UpdateSiteP2MetadataMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/class-use/AbstractP2MetadataMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/class-use/BaselineMode.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/class-use/BaselineReplace.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/class-use/BaselineValidator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/class-use/CategoryP2MetadataMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/class-use/FeatureP2MetadataMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/class-use/P2MetadataDefaultMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/class-use/P2MetadataMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/class-use/Repository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/class-use/UpdateLocalIndexMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/class-use/UpdateSiteP2MetadataMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/DirectorMojo.DirectorRuntimeType.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/DirectorMojo.InstallationSource.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/DirectorMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/Product.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/ProductArchiverMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/ProfileName.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/class-use/DirectorMojo.DirectorRuntimeType.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/class-use/DirectorMojo.InstallationSource.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/class-use/DirectorMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/class-use/Product.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/class-use/ProductArchiverMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/class-use/ProfileName.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/runtime
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/runtime/StandaloneDirectorRuntime.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/runtime/StandaloneDirectorRuntimeFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/runtime/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/runtime/class-use/StandaloneDirectorRuntime.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/runtime/class-use/StandaloneDirectorRuntimeFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/runtime/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/runtime/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/runtime/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/director/runtime/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/AbstractP2Mojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/AbstractPublishMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/PublishCategoriesMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/PublishEEProfileMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/PublishProductMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/class-use/AbstractP2Mojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/class-use/AbstractPublishMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/class-use/PublishCategoriesMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/class-use/PublishEEProfileMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/class-use/PublishProductMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/persistence
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/persistence/AttachPublishedArtifactsMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/persistence/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/persistence/class-use/AttachPublishedArtifactsMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/persistence/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/persistence/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/persistence/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/publisher/persistence/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/repository
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/repository/AbstractRepositoryMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/repository/ArchiveRepositoryMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/repository/AssembleRepositoryMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/repository/VerifyIntegrityRepositoryMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/repository/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/repository/class-use/AbstractRepositoryMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/repository/class-use/ArchiveRepositoryMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/repository/class-use/AssembleRepositoryMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/repository/class-use/VerifyIntegrityRepositoryMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/repository/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/repository/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/repository/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/plugins/p2/repository/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/GeneratePomsMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/TychoException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/class-use/GeneratePomsMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/class-use/TychoException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/mapfile
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/mapfile/MapEntry.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/mapfile/MapfileUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/mapfile/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/mapfile/class-use/MapEntry.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/mapfile/class-use/MapfileUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/mapfile/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/mapfile/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/mapfile/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/mapfile/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/pomgenerator/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/BaseMavenRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/GAVArtifactDescriptor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/GAVArtifactDescriptorTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/LocalArtifactRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/LocalArtifactRepositoryFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/LocalArtifactRepositoryFactoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/LocalArtifactRepositoryP2APITest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/LocalArtifactRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/LocalMetadataRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/LocalMetadataRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/MirroringArtifactProvider.MirroringFailedException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/MirroringArtifactProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/MirroringArtifactProviderErrorTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/MirroringArtifactProviderPack200CornerCasesTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/MirroringArtifactProviderTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/NonStartableArtifactSink.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/BaseMavenRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/GAVArtifactDescriptor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/GAVArtifactDescriptorTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/LocalArtifactRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/LocalArtifactRepositoryFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/LocalArtifactRepositoryFactoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/LocalArtifactRepositoryP2APITest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/LocalArtifactRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/LocalMetadataRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/LocalMetadataRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/MirroringArtifactProvider.MirroringFailedException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/MirroringArtifactProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/MirroringArtifactProviderErrorTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/MirroringArtifactProviderPack200CornerCasesTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/MirroringArtifactProviderTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/class-use/NonStartableArtifactSink.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/index
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/index/FileBasedTychoRepositoryIndex.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/index/LocalRepositoryP2IndicesImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/index/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/index/class-use/FileBasedTychoRepositoryIndex.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/index/class-use/LocalRepositoryP2IndicesImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/index/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/index/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/index/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/index/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/testutil
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/testutil/TemporaryLocalMavenRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/testutil/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/testutil/class-use/TemporaryLocalMavenRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/testutil/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/testutil/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/testutil/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/local/testutil/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/ModuleArtifactRepositoryFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/ModuleArtifactRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/ModuleMetadataRepositoryFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/ModuleMetadataRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/PublishingRepositoryImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/PublishingRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/ReactorRepositoryManagerImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/class-use/ModuleArtifactRepositoryFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/class-use/ModuleArtifactRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/class-use/ModuleMetadataRepositoryFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/class-use/ModuleMetadataRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/class-use/PublishingRepositoryImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/class-use/PublishingRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/class-use/ReactorRepositoryManagerImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/module/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/ArtifactProviderImplUtilities.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/CompositeArtifactProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/CompositeArtifactProviderBaseImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/CompositeArtifactProviderTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/CompositeArtifactProviderTestBase.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/IArtifactFileProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/IArtifactProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/IRawArtifactFileProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/IRawArtifactProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/class-use/ArtifactProviderImplUtilities.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/class-use/CompositeArtifactProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/class-use/CompositeArtifactProviderBaseImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/class-use/CompositeArtifactProviderTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/class-use/CompositeArtifactProviderTestBase.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/class-use/IArtifactFileProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/class-use/IArtifactProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/class-use/IRawArtifactFileProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/class-use/IRawArtifactProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/formats
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/formats/ArtifactTransferPolicies.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/formats/ArtifactTransferPolicy.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/formats/LocalArtifactTransferPolicyTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/formats/RemoteArtifactTransferPolicyTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/formats/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/formats/class-use/ArtifactTransferPolicies.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/formats/class-use/ArtifactTransferPolicy.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/formats/class-use/LocalArtifactTransferPolicyTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/formats/class-use/RemoteArtifactTransferPolicyTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/formats/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/formats/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/formats/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/formats/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/streaming
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/streaming/ArtifactSinkException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/streaming/ArtifactSinkFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/streaming/IArtifactSink.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/streaming/IRawArtifactSink.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/streaming/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/streaming/class-use/ArtifactSinkException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/streaming/class-use/ArtifactSinkFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/streaming/class-use/IArtifactSink.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/streaming/class-use/IRawArtifactSink.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/streaming/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/streaming/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/streaming/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/provider/streaming/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/AbstractArtifactRepository2.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/ArtifactRepositoryBaseImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/FileRepositoryArtifactProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/ProviderOnlyArtifactRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/ProviderOnlyArtifactRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/RepositoryArtifactProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/RepositoryArtifactProviderTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/class-use/AbstractArtifactRepository2.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/class-use/ArtifactRepositoryBaseImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/class-use/FileRepositoryArtifactProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/class-use/ProviderOnlyArtifactRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/class-use/ProviderOnlyArtifactRepositoryTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/class-use/RepositoryArtifactProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/class-use/RepositoryArtifactProviderTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/p2base/artifact/repository/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/publishing
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/publishing/PublishingRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/publishing/WriteSessionContext.ClassifierAndExtension.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/publishing/WriteSessionContext.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/publishing/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/publishing/class-use/PublishingRepository.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/publishing/class-use/WriteSessionContext.ClassifierAndExtension.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/publishing/class-use/WriteSessionContext.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/publishing/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/publishing/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/publishing/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/publishing/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/ArtifactRepositoryBlackboard.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/ReactorRepositoryManager.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/class-use/ArtifactRepositoryBlackboard.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/class-use/ReactorRepositoryManager.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/facade
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/facade/PublishingRepositoryFacade.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/facade/ReactorRepositoryManagerFacade.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/facade/RepositoryBlackboardKey.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/facade/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/facade/class-use/PublishingRepositoryFacade.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/facade/class-use/ReactorRepositoryManagerFacade.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/facade/class-use/RepositoryBlackboardKey.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/facade/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/facade/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/facade/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/facade/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/registry/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming/testutil
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming/testutil/NoopOutputStream.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming/testutil/ProbeArtifactSink.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming/testutil/ProbeOutputStream.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming/testutil/ProbeRawArtifactSink.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming/testutil/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming/testutil/class-use/NoopOutputStream.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming/testutil/class-use/ProbeArtifactSink.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming/testutil/class-use/ProbeOutputStream.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming/testutil/class-use/ProbeRawArtifactSink.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming/testutil/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming/testutil/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming/testutil/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/streaming/testutil/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/testutil
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/testutil/ArtifactRepositoryMatchers.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/testutil/ArtifactRepositoryTestUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/testutil/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/testutil/class-use/ArtifactRepositoryMatchers.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/testutil/class-use/ArtifactRepositoryTestUtils.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/testutil/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/testutil/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/testutil/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/testutil/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/GAVArtifactDescriptorBase.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/LoggingProgressMonitor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/StatusTool.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/StatusToolTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/class-use/GAVArtifactDescriptorBase.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/class-use/LoggingProgressMonitor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/class-use/StatusTool.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/class-use/StatusToolTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/internal
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/internal/BundleConstants.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/internal/RepositoryFactoryTools.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/internal/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/internal/class-use/BundleConstants.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/internal/class-use/RepositoryFactoryTools.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/internal/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/internal/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/internal/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/internal/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/repository/util/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/resolver
-/usr/share/javadoc/tycho/org/eclipse/tycho/resolver/DependencyVisitor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/resolver/ReactorMetadataCache.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/resolver/TychoDependencyResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/resolver/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/resolver/class-use/DependencyVisitor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/resolver/class-use/ReactorMetadataCache.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/resolver/class-use/TychoDependencyResolver.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/resolver/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/resolver/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/resolver/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/resolver/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/runtime
-/usr/share/javadoc/tycho/org/eclipse/tycho/runtime/Adaptable.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/runtime/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/runtime/class-use/Adaptable.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/runtime/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/runtime/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/runtime/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/runtime/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/security
-/usr/share/javadoc/tycho/org/eclipse/tycho/security/storage
-/usr/share/javadoc/tycho/org/eclipse/tycho/security/storage/TychoPasswordProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/security/storage/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/security/storage/class-use/TychoPasswordProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/security/storage/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/security/storage/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/security/storage/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/security/storage/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/source
-/usr/share/javadoc/tycho/org/eclipse/tycho/source/AbstractSourceJarMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/source/OsgiSourceMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/source/SourcesP2MetadataProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/source/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/source/class-use/AbstractSourceJarMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/source/class-use/OsgiSourceMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/source/class-use/SourcesP2MetadataProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/source/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/source/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/source/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/source/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/TestMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/class-use/TestMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/AbstractUITestApplication.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/Activator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/HeadlessTestApplication.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/OsgiSurefireBooter.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/TychoClasspathConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/UITestApplication.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/UITestApplication32.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/class-use/AbstractUITestApplication.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/class-use/Activator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/class-use/HeadlessTestApplication.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/class-use/OsgiSurefireBooter.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/class-use/TychoClasspathConfiguration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/class-use/UITestApplication.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/class-use/UITestApplication32.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/osgibooter/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/AbstractJUnitProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/JUnit3Provider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/JUnit47Provider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/JUnit4Provider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/ProviderHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/class-use/AbstractJUnitProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/class-use/JUnit3Provider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/class-use/JUnit47Provider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/class-use/JUnit4Provider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/class-use/ProviderHelper.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/impl/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/spi
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/spi/TestFrameworkProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/spi/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/spi/class-use/TestFrameworkProvider.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/spi/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/spi/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/spi/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provider/spi/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/BundlesPublisher.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/ProvisionedEquinoxInstallation.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/ProvisionedInstallationBuilder.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/ProvisionedInstallationBuilderFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/ProvisionedInstallationDescription.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/class-use/BundlesPublisher.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/class-use/ProvisionedEquinoxInstallation.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/class-use/ProvisionedInstallationBuilder.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/class-use/ProvisionedInstallationBuilderFactory.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/class-use/ProvisionedInstallationDescription.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/surefire/provisioning/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/AbstractTychoIntegrationTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/class-use/AbstractTychoIntegrationTest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/AbstractMonitorServlet.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/Activator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/BuildPropertiesParserForTesting.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/EnvironmentUtil.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/FileServerServlet.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/HttpServer.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/LocalMavenRepositoryTool.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/LogVerifier.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/NoopFileLockService.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/P2Context.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/P2RepositoryTool.IU.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/P2RepositoryTool.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/ReactorProjectCoordinatesStub.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/StatusMatchers.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/StubServiceRegistration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/TychoMatchers.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/AbstractMonitorServlet.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/Activator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/BuildPropertiesParserForTesting.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/EnvironmentUtil.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/FileServerServlet.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/HttpServer.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/LocalMavenRepositoryTool.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/LogVerifier.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/NoopFileLockService.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/P2Context.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/P2RepositoryTool.IU.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/P2RepositoryTool.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/ReactorProjectCoordinatesStub.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/StatusMatchers.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/StubServiceRegistration.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/class-use/TychoMatchers.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/test/util/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/AbstractTychoMojoTestCase.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/CompoundRuntimeException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/EmptyLifecycleExecutor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/StubEquinoxRuntimeLocator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/TestUtil.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/class-use/AbstractTychoMojoTestCase.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/class-use/CompoundRuntimeException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/class-use/EmptyLifecycleExecutor.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/class-use/StubEquinoxRuntimeLocator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/class-use/TestUtil.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/testing/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/SetMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/UpdatePomMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/bundle
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/bundle/ManifestAttribute.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/bundle/MutableBundleManifest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/bundle/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/bundle/class-use/ManifestAttribute.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/bundle/class-use/MutableBundleManifest.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/bundle/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/bundle/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/bundle/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/bundle/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/class-use/SetMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/class-use/UpdatePomMojo.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/IllegalVersionChangeException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/MetadataManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/PomVersionUpdater.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/ProductConfigurations.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/ProjectMetadata.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/ProjectMetadataReader.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/VersionChange.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/Versions.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/VersionsEngine.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/class-use/IllegalVersionChangeException.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/class-use/MetadataManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/class-use/PomVersionUpdater.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/class-use/ProductConfigurations.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/class-use/ProjectMetadata.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/class-use/ProjectMetadataReader.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/class-use/VersionChange.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/class-use/Versions.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/class-use/VersionsEngine.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/engine/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/AbstractMetadataManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/BundleManifestManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/EclipseApplicationProductFileManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/EclipseRepositoryProductFileManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/FeatureXmlManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/PomManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/ProductFileManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/SiteXmlManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/class-use/AbstractMetadataManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/class-use/BundleManifestManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/class-use/EclipseApplicationProductFileManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/class-use/EclipseRepositoryProductFileManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/class-use/FeatureXmlManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/class-use/PomManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/class-use/ProductFileManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/class-use/SiteXmlManipulator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/manipulation/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/Build.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/Dependencies.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/DependencyManagement.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/GAV.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/MutablePomFile.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/Plugin.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/PluginManagement.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/Profile.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/Property.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/class-use/Build.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/class-use/Dependencies.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/class-use/DependencyManagement.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/class-use/GAV.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/class-use/MutablePomFile.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/class-use/Plugin.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/class-use/PluginManagement.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/class-use/Profile.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/class-use/Property.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/versions/pom/package-use.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/ClassfileComparator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/CompoundArtifactDelta.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/ContentsComparator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/DefaultContentsComparator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/ManifestComparator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/NestedZipComparator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/PropertiesComparator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/SimpleArtifactDelta.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/ZipComparatorImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/class-use
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/class-use/ClassfileComparator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/class-use/CompoundArtifactDelta.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/class-use/ContentsComparator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/class-use/DefaultContentsComparator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/class-use/ManifestComparator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/class-use/NestedZipComparator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/class-use/PropertiesComparator.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/class-use/SimpleArtifactDelta.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/class-use/ZipComparatorImpl.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/package-frame.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/package-summary.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/package-tree.html
-/usr/share/javadoc/tycho/org/eclipse/tycho/zipcomparator/internal/package-use.html
-/usr/share/javadoc/tycho/org/fedoraproject
-/usr/share/javadoc/tycho/org/fedoraproject/EmptyMojo.html
-/usr/share/javadoc/tycho/org/fedoraproject/class-use
-/usr/share/javadoc/tycho/org/fedoraproject/class-use/EmptyMojo.html
-/usr/share/javadoc/tycho/org/fedoraproject/package-frame.html
-/usr/share/javadoc/tycho/org/fedoraproject/package-summary.html
-/usr/share/javadoc/tycho/org/fedoraproject/package-tree.html
-/usr/share/javadoc/tycho/org/fedoraproject/package-use.html
-/usr/share/javadoc/tycho/overview-frame.html
-/usr/share/javadoc/tycho/overview-summary.html
-/usr/share/javadoc/tycho/overview-tree.html
-/usr/share/javadoc/tycho/package-list
-/usr/share/javadoc/tycho/resources
-/usr/share/javadoc/tycho/resources/background.gif
-/usr/share/javadoc/tycho/resources/tab.gif
-/usr/share/javadoc/tycho/resources/titlebar.gif
-/usr/share/javadoc/tycho/resources/titlebar_end.gif
-/usr/share/javadoc/tycho/serialized-form.html
-/usr/share/javadoc/tycho/stylesheet.css
+%package javadoc
+Summary:        Javadocs for %{name}
 
-#------------------------------------------------------------------------
+Requires:       jpackage-utils
+
+%description javadoc
+This package contains the API documentation for %{name}.
+
 %prep
+%setup -q -n %{name}-0.19.x
+
+%patch0 -p1
+%patch1 -p1
+%patch2 -p1
+%patch3 -p1
+
+find tycho-core -iname '*html' -delete
+
+sed -i -e 's/org.apache.maven.it.util.DirectoryScanner/org.apache.maven.shared.utils.io.DirectoryScanner/g' tycho-testing-harness/src/main/java/org/eclipse/tycho/test/AbstractTychoIntegrationTest.java
+
+# Move from org.sonatype.aether to org.eclipse.aether
+find . -name "*.java" | xargs sed -i 's/org.sonatype.aether/org.eclipse.aether/g'
+find . -name "*.java" | xargs sed -i 's/org.eclipse.aether.util.DefaultRepositorySystemSession/org.eclipse.aether.DefaultRepositorySystemSession/g'
+sed -i 's/public int getPriority/public float getPriority/g' tycho-core/src/main/java/org/eclipse/tycho/core/p2/P2RepositoryConnectorFactory.java
+
+# place empty mojo in place
+mkdir -p tycho-maven-plugin/src/main/java/org/fedoraproject
+pushd tycho-maven-plugin/src/main/java/org/fedoraproject
+cp %{SOURCE1} .
+popd
+
+# Bootstrap Build
+%if %{bootstrap}
+tar -xf %{SOURCE4}
+
+# EXACT version in reactor cache to build against when bootstrapping
+# If we built our own Tycho locally and put it into reactor cache instead
+# of using upstream's then we need to make sure the build finds it.
+sed -i 's/<tychoBootstrapVersion>0.16.0<\/tychoBootstrapVersion>/<tychoBootstrapVersion>0.18.0<\/tychoBootstrapVersion>/' pom.xml
+
+# gid:aid used by bootstrapped build dependencies
+mkdir -p .m2/org/ow2/asm/asm-debug-all/4.0/
+pushd .m2/org/ow2/asm/asm-debug-all/4.0/
+ln -s %{_mavenpomdir}/JPP.objectweb-asm4-asm-all.pom asm-debug-all-4.0.pom
+ln -s %{_javadir}/objectweb-asm4/asm-all.jar asm-debug-all-4.0.jar
+popd
+
+%patch7 -p1
+
+# Tycho can't use cached composite repository metadata so use other type
+sed -i 's/releases\/kepler\//releases\/kepler\/201306260900/' tycho-bundles/tycho-bundles-target/tycho-bundles-target.target
+
+# Non-Bootstrap Build
+%else
+
+# Tests are skipped anyways, so remove some test dependencies
+%pom_xpath_remove "pom:dependency[pom:classifier='tests']" tycho-compiler-plugin
+%pom_xpath_remove "pom:dependency[pom:classifier='tests']" tycho-packaging-plugin
+
+# These units cannot be found during a regular build
+sed -i '/^<unit id=.*$/d' tycho-bundles/tycho-bundles-target/tycho-bundles-target.target
+
+# installed version of Tycho
+sysVer=`grep -C 1 "<artifactId>tycho</artifactId>" %{_mavenpomdir}/JPP.tycho-main.pom | grep "version" | sed 's/.*>\(.*\)<.*/\1/'`
+
+# build version of Tycho
+buildVer=`grep -C 1 "<artifactId>tycho</artifactId>" pom.xml | grep "version" | sed 's/.*>\(.*\)<.*/\1/'`
+
+echo "System version is ${sysVer} and attempting to build ${buildVer}."
+
+# If version installed on system is the same as the version being built
+# an intermediary build must be done to prevent a cycle at build time.
+if [ "${sysVer}" == "${buildVer}" ]; then
+echo "Performing intermediary build"
+%patch4 -p1
+
+mvn-rpmbuild -Dmaven.local.depmap.file=%{SOURCE2} -DskipTychoVersionCheck -Dmaven.test.skip=true install javadoc:aggregate
+
+%patch4 -p1 -R
+
+# EXACT version in reactor cache to build against (%%{version}-SNAPSHOT)
+sed -i 's/<tychoBootstrapVersion>0.18.1<\/tychoBootstrapVersion>/<tychoBootstrapVersion>0.19.0-SNAPSHOT<\/tychoBootstrapVersion>/' pom.xml
+fi
+
+%endif
 
 %build
+mvn-rpmbuild -Dmaven.local.depmap.file=%{SOURCE2} -DskipTychoVersionCheck -Dmaven.test.skip=true clean install javadoc:aggregate
 
 %install
-cd %{buildroot}
-rpm2cpio %{SOURCE0} | cpio -id
-rpm2cpio %{SOURCE1} | cpio -id
+
+mkdir -p $RPM_BUILD_ROOT%{_javadir}/%{name}
+install -d -m 755 $RPM_BUILD_ROOT%{_mavenpomdir}
+
+# pom and jar installation
+for mod in target-platform-configuration tycho-compiler-{jdt,plugin} \
+           tycho-{artifactcomparator,core,embedder-api,metadata-model,testing-harness} \
+           sisu-equinox/sisu-equinox{-api,-launching,-embedder} \
+           tycho-p2/tycho-p2-{facade,plugin,{director,publisher,repository}-plugin} \
+           tycho-{maven,packaging,pomgenerator,release/tycho-versions,source}-plugin \
+           tycho-bundles/org*  \
+           tycho-surefire/{tycho-surefire-plugin,org.eclipse.tycho.surefire.{osgibooter,junit,junit4{,7}}}; do
+   echo $mod
+   aid=`basename $mod`
+   install -pm 644 $mod/pom.xml  $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-$aid.pom
+   install -m 644 $mod/target/$aid-%{version}%{snap}.jar $RPM_BUILD_ROOT%{_javadir}/%{name}/$aid.jar
+   %add_maven_depmap JPP.%{name}-$aid.pom %{name}/$aid.jar -a "org.eclipse.tycho:$aid,org.sonatype.tycho:$aid"
+done
+
+# pom installation
+for pommod in tycho-p2 tycho-bundles tycho-surefire \
+              tycho-release sisu-equinox; do
+   aid=`basename $pommod`
+   install -pm 644 $pommod/pom.xml \
+               $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-$aid.pom
+   %add_maven_depmap JPP.%{name}-$aid.pom -a "org.eclipse.tycho:$aid,org.sonatype.tycho:$aid"
+done
+
+# p2 runtime
+pushd tycho-bundles/tycho-bundles-external
+install -pm 644 pom.xml $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-tycho-bundles-external.pom
+install -m 644 target/tycho-bundles-external-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external.zip
+ln -s tycho-bundles-external.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external.jar
+%add_maven_depmap -f zip JPP.%{name}-tycho-bundles-external.pom %{name}/tycho-bundles-external.jar -a "org.eclipse.tycho:tycho-bundles-external,org.sonatype.tycho:tycho-bundles-external"
+popd
+
+# main
+install -pm 644 pom.xml  $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-main.pom
+%add_maven_depmap JPP.%{name}-main.pom -a "org.eclipse.tycho:$aid,org.sonatype.tycho:$aid"
+
+# standalone p2 director
+pushd .m2/org/eclipse/tycho/tycho-standalone-p2-director/%{version}*/
+install -m 644 tycho-standalone-p2-director-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-standalone-p2-director.zip
+ln -s tycho-standalone-p2-director.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-standalone-p2-director.jar
+install -pm 644 tycho-standalone-p2-director-%{version}*.pom $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-tycho-standalone-p2-director.pom
+popd
+%add_maven_depmap -f zip JPP.%{name}-tycho-standalone-p2-director.pom tycho/tycho-standalone-p2-director.jar -a "org.eclipse.tycho:tycho-standalone-p2-director,org.sonatype.tycho:tycho-standalone-p2-director"
+
+# javadoc
+install -dm 755 $RPM_BUILD_ROOT%{_javadocdir}/%{name}
+cp -pr target/site/api*/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}
+
+install -pm 755 %{SOURCE3} $RPM_BUILD_ROOT%{_javadir}/%{name}/copy-platform-all
+
+%if %{bootstrap}
+# org.eclipse.osgi
+osgiJarPath=`find ".m2" -name "org.eclipse.osgi_*.jar"`
+osgiJar=`basename $osgiJarPath`
+osgiVer=`echo $osgiJar | sed 's/^.*_//' | sed 's/.jar//'`
+
+mvn-rpmbuild org.apache.maven.plugins:maven-install-plugin:install-file \
+-Dfile=$osgiJarPath \
+-Dpackaging=jar \
+-DgroupId=org.eclipse.tycho \
+-DartifactId=org.eclipse.osgi \
+-Dversion=$osgiVer
+
+osgiPomPath=`find ".m2/org/eclipse/tycho/org.eclipse.osgi" -name "org.eclipse.osgi-$osgiVer.pom"`
+
+install -pm 644 $osgiPomPath $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.tycho-osgi.pom
+install -m 644 $osgiJarPath $RPM_BUILD_ROOT%{_javadir}/%{name}/osgi.jar
+%add_maven_depmap JPP.%{name}-osgi.pom %{name}/osgi.jar -a "org.eclipse.tycho:org.eclipse.osgi"
+%endif
+
+# This is a temporary workaround for rhbz#1004310.  This is a hack,
+# but it is needed to make tycho work until this bug is fixed
+# properly.
+sed -i 's|<maven>|&<extension>zip</extension>|' \
+    $RPM_BUILD_ROOT%{_mavendepmapfragdir}/%{name}-zip
+
+%files
+%{_mavenpomdir}/*
+%{_mavendepmapfragdir}/%{name}
+%{_mavendepmapfragdir}/%{name}-zip
+%{_javadir}/%{name}/
+%doc README.md
+
+%files javadoc
+%{_javadocdir}/%{name}
+
+%changelog
+* Thu Oct 24 2013 Roland Grunberg <rgrunber@redhat.com> - 0.19.0-1
+- Update to 0.19.0 Release.
+
+* Fri Oct 04 2013 Roland Grunberg <rgrunber@redhat.com> - 0.18.1-7
+- Do not use XMvn internals (Bug 1015038).
+
+* Thu Oct 3 2013 Krzysztof Daniel <kdaniel@redhat.com> 0.18.1-6
+- Adjust to latest Xmvn (workaround for 1015038).
+
+* Mon Sep  9 2013 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.18.1-5
+- Add workaround for rhbz#1004310
+
+* Tue Jul 30 2013 Roland Grunberg <rgrunber@redhat.com> - 0.18.1-4
+- Improve artifact resolution using XMvn Resolver. (Bug 986900)
+
+* Mon Jul 29 2013 Roland Grunberg <rgrunber@redhat.com> - 0.18.1-3
+- Fix Tycho file locking to work in Fedora.
+- Skip validateConsistentTychoVersion by default. (Bug 987271)
+
+* Wed Jul 24 2013 Roland Grunberg <rgrunber@redhat.com> - 0.18.1-2
+- Non-bootstrap build.
+
+* Wed Jul 24 2013 Roland Grunberg <rgrunber@redhat.com> - 0.18.1-1.1
+- Update to use Eclipse Aether.
+- Use MavenSession and Plexus to determine state.
+- Fix bootstrap build.
+
+* Thu Jul 18 2013 Roland Grunberg <rgrunber@redhat.com> 0.18.1-1
+- Make changes to ensure intermediary build succeeds.
+- Remove %%Patch6 in favour of call to sed.
+
+* Thu Jul 18 2013 Krzysztof Daniel <kdaniel@redhat.com> 0.18.1-1
+- Update to 0.18.1.
+
+* Tue Jul 16 2013 Roland Grunberg <rgrunber@redhat.com> - 0.18.0-5
+- Look for maven artifacts using XMvn Resolver.
+
+* Tue Jul 9 2013 Roland Grunberg <rgrunber@redhat.com> 0.18.0-4
+- Update to use maven-surefire 2.15 API.
+
+* Fri Jul 5 2013 Alexander Kurtakov <akurtako@redhat.com> 0.18.0-3
+- Use _jnidir too when building local p2 repo.
+
+* Thu Jun 6 2013 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.18.0-2
+- Add Requires on plugins present in Maven super POM
+- Resolves: rhbz#971301
+
+* Tue May 28 2013 Roland Grunberg <rgrunber@redhat.com> 0.18.0-1
+- Update to 0.18.0 Release.
+
+* Thu Apr 11 2013 Roland Grunberg <rgrunber@redhat.com> 0.17.0-1
+- Fix bootstrap build for potential future use.
+
+* Tue Apr 2 2013 Roland Grunberg <rgrunber@redhat.com> 0.17.0-1
+- Update to 0.17.0 Release.
+
+* Mon Mar 18 2013 Roland Grunberg <rgrunber@redhat.com> 0.17.0-0.11.git3351b1
+- Non-bootstrap build.
+
+* Mon Mar 18 2013 Krzysztof Daniel <kdaniel@redhat.com> 0.17.0-0.10.git3351b1
+- Merge mizdebsk patch with existing custom resolver patch.
+
+* Mon Mar 18 2013 Krzysztof Daniel <kdaniel@redhat.com> 0.17.0-0.9.git3351b1
+- Move the patch into better place.
+
+* Mon Mar 18 2013 Krzysztof Daniel <kdaniel@redhat.com> 0.17.0-0.8.git3351b1
+- Non-bootstrap build.
+
+* Mon Mar 18 2013 Krzysztof Daniel <kdaniel@redhat.com> 0.17.0-0.7.git3351b1
+- Commit the patch.
+
+* Mon Mar 18 2013 Krzysztof Daniel <kdaniel@redhat.com> 0.17.0-0.6.git3351b1
+- Use plexus to instantiate workspace reader.
+
+* Sun Mar 17 2013 Roland Grunberg <rgrunber@redhat.com> 0.17.0-0.5.git3351b1
+- Non-bootstrap build.
+
+* Fri Mar 15 2013 Roland Grunberg <rgrunber@redhat.com> 0.17.0-0.4.git3351b1
+- Update bootstrapped build for 0.17.0-SNAPSHOT to work against 0.16.0.
+- Update to Plexus Compiler 2.2 API.
+
+* Thu Feb 28 2013 Roland Grunberg <rgrunber@redhat.com> 0.17.0-0.3.git3351b1
+- Update to using Jetty 9 API.
+
+* Mon Feb 25 2013 Roland Grunberg <rgrunber@redhat.com> 0.17.0-0.2.git3351b1
+- Set the global default execution environment to JavaSE-1.6.
+- Patch clean-up.
+
+* Mon Feb 25 2013 Krzysztof Daniel <kdaniel@redhat.com> 0.17.0-0.1.git3351b1
+- Update to latest upstream.
+- RHBZ#915194 - API changed in maven-surefire
+
+* Wed Feb 6 2013 Roland Grunberg <rgrunber@redhat.com> 0.16.0-21
+- Non-bootstrap build.
+
+* Wed Feb 06 2013 Java SIG <java-devel@lists.fedoraproject.org> - 0.16.0-20.2
+- Update for https://fedoraproject.org/wiki/Fedora_19_Maven_Rebuild
+- Replace maven BuildRequires with maven-local
+
+* Wed Feb 6 2013 Roland Grunberg <rgrunber@redhat.com> 0.16.0-20.1
+- Change BR/R on maven to maven-local for XMvn support.
+- Build bootstrapped to fix missing Fedora Maven class.
+
+* Thu Jan 24 2013 Roland Grunberg <rgrunber@redhat.com> 0.16.0-20
+- Use TYCHO_MVN_{LOCAL,RPMBUILD} to determine how maven was called.
+- Update to maven-surefire 2.13.
+
+* Thu Dec 20 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-19
+- Fix upstream Bug 361204.
+
+* Mon Dec 3 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-18
+- Add support for more flexible OSGi bundle paths.
+- Use OSGi Requires instead of package name.
+- Expand Requires to include the Eclipse platform.
+
+* Mon Nov 19 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-17
+- Make additional changes to get Tycho building bootstrapped.
+
+* Mon Nov 5 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-16
+- Add capability to build without depending on Tycho or Eclipse.
+
+* Sat Oct 20 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-15
+- Package org.eclipse.osgi and org.eclipse.jdt.core.
+
+* Fri Oct 19 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-14
+- Update to finalized 0.16.0 Release.
+
+* Wed Oct 17 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-13
+- Build Tycho properly in one RPM build.
+- Update to 0.16.0 Release.
+
+* Thu Oct 11 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-12.d7f885
+- Non-bootstrap build.
+
+* Thu Oct 11 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-11.1.d7f885
+- Remove dependence on eclipse by use of self-bundled equinox launcher.
+
+* Wed Oct 10 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-11.d7f885
+- copy-platform-all should make symlinked jars from %%{_javadir} unique.
+- Non-bootstrap build (reset the %%bootstrap flag properly).
+
+* Mon Oct 8 2012 Krzysztof Daniel <kdaniel@redhat.com> 0.16.0-10.d7f885
+- Non-bootstrap build.
+
+* Mon Oct 8 2012 Krzysztof Daniel <kdaniel@redhat.com> 0.16.0-9.1.d7f885
+- Filter out OSGi dependencies.
+
+* Thu Oct 4 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-9.d7f885
+- Non-bootstrap build.
+
+* Thu Oct 4 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-8.1.d7f885
+- Fix Bug in overriding of BREE to JavaSE-1.6.
+
+* Wed Oct 3 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-8.d7f885
+- Non-bootstrap build.
+
+* Wed Oct 3 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-7.1.d7f885
+- Update to latest 0.16.0 SNAPSHOT.
+- First attempts to build without cyclic dependency to JDT.
+
+* Mon Aug 27 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-7.df2c35
+- Non bootstrap-build.
+
+* Mon Aug 27 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-6.1.df2c35
+- Add BR/R on explicit dependency objectweb-asm4.
+- Use consistent whitespace in specfile.
+
+* Fri Aug 24 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-6.df2c35
+- Non-bootstrap build.
+
+* Thu Aug 23 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-5.1.df2c35
+- Set BREE to at least JavaSE-1.6 for all eclipse packaging types.
+- Remove unneeded workaround for JSR14 incompatibility of JDK 1.7.
+
+* Wed Aug 15 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-5.df2c35
+- Non-bootstrap build.
+
+* Mon Aug 13 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-4.1.df2c35
+- Correctly reference objectweb-asm4 and fix local mode resolution bug.
+- Update spec file to honour new java packaging guidelines.
+
+* Thu Aug 9 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-4.df2c35
+- Non-bootstrap build.
+
+* Thu Aug 9 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-3.1.df2c35
+- Add tycho.local.keepTarget flag to bypass ignoring environments.
+
+* Thu Aug 9 2012 Krzysztof Daniel <kdaniel@redhat.com> 0.16.0-3.df2c35
+- Non-bootstrap build.
+
+* Thu Aug 9 2012 Krzysztof Daniel <kdaniel@redhat.com> 0.16.0-2.1.df2c35
+- Use recommended %%add_maven_depmap. 
+
+* Thu Aug 9 2012 Krzysztof Daniel <kdaniel@redhat.com> 0.16.0-2.df2c35
+- Non-bootstrap build.
+
+* Thu Aug 9 2012 Krzysztof Daniel <kdaniel@redhat.com> 0.16.0-1.2.df2c35
+- Properly change bootstrap flag.
+- Add some git ignores.
+
+* Thu Aug 9 2012 Krzysztof Daniel <kdaniel@redhat.com> 0.16.0-1.1.df2c35
+- Install missing tycho-standalone-p2-director.zip.
+
+* Thu Aug 2 2012 Roland Grunberg <rgrunber@redhat.com> 0.16.0-1.df2c35
+- Update to 0.16.0 SNAPSHOT.
+
+* Tue Jul 31 2012 Roland Grunberg <rgrunber@redhat.com> 0.15.0-3
+- Non-bootstrap build.
+
+* Tue Jul 31 2012 Roland Grunberg <rgrunber@redhat.com> 0.15.0-2.1
+- Ignore defined environments in local mode.
+
+* Mon Jul 30 2012 Roland Grunberg <rgrunber@redhat.com> 0.15.0-2
+- Non-bootstrap build.
+
+* Mon Jul 30 2012 Roland Grunberg <rgrunber@redhat.com> 0.15.0-1.1
+- Fix copy-platform-all script to properly link %%{_datadir}/eclipse jars.
+
+* Thu Jul 26 2012 Roland Grunberg <rgrunber@redhat.com> 0.15.0-1
+- Update to 0.15.0.
+- Set BREE to at least JavaSE-1.6 for Eclipse feature bundles.
+
+* Wed Jul 25 2012 Roland Grunberg <rgrunber@redhat.com> 0.14.1-7
+- Non-bootstrap build.
+
+* Mon Jul 23 2012 Roland Grunberg <rgrunber@redhat.com> 0.14.1-6
+- Detect OSGi jars using presence of Bundle-SymbolicName entry (BZ #838513).
+
+* Sun Jul 22 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0.14.1-6
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
+
+* Mon Jun 11 2012 Roland Grunberg <rgrunber@redhat.com> 0.14.1-5
+- Non-bootstrap build.
+
+* Tue May 29 2012 Roland Grunberg <rgrunber@redhat.com> 0.14.1-4.1
+- Fix Tycho Surfire to run Eclipse test bundles.
+- Implement automatic creation of a system p2 repository.
+- Allow building SWT fragments (BZ #380934).
+
+* Wed May 23 2012 Roland Grunberg <rgrunber@redhat.com> 0.14.1-4
+- Non-bootstrap build.
+
+* Thu May 17 2012 Roland Grunberg <rgrunber@redhat.com> 0.14.1-3.1
+- Set BREE to be at least JavaSE-1.6 for Eclipse OSGi bundles.
+
+* Wed May 16 2012 Roland Grunberg <rgrunber@redhat.com> 0.14.1-3
+- Non-bootstrap build.
+
+* Wed Apr 25 2012 Roland Grunberg <rgrunber@redhat.com> 0.14.1-2.1
+- Implement a custom resolver when running in local mode.
+- Use upstream solution for BZ #372395 to fix the build.
+
+* Wed Apr 4 2012 Roland Grunberg <rgrunber@redhat.com> 0.14.1-2
+- Non-bootstrap build.
+
+* Tue Mar 27 2012 Roland Grunberg <rgrunber@redhat.com> 0.14.1-1.1
+- Add missing tycho-testing-harness to be packaged.
+- Use %%{_eclipse_base} from eclipse-platform.
+
+* Fri Mar 9 2012 Roland Grunberg <rgrunber@redhat.com> 0.14.1-1
+- Update to 0.14.1 upstream tag.
+- Allow building against maven-surefire 2.12 (instead of 2.10).
+- Stop symlinking o.e.osgi and o.e.jdt.core into the m2 cache.
+
+* Thu Feb 16 2012 Roland Grunberg <rgrunber@redhat.com> 0.14.0-4
+- Non-bootstrap build.
+
+* Tue Feb 14 2012 Roland Grunberg <rgrunber@redhat.com> 0.14.0-3
+- Update to 0.14.0 upstream tag.
+
+* Thu Feb 9 2012 Roland Grunberg <rgrunber@redhat.com> 0.14.0-2
+- Non-bootstrap build.
+
+* Wed Feb 01 2012 Roland Grunberg <rgrunber@redhat.com> - 0.14.0-1
+- Update to 0.14.0.
+
+* Sat Jan 14 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0.10.0-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_17_Mass_Rebuild
+
+* Fri May 27 2011 Stanislav Ochotnicky <sochotnicky@redhat.com> - 0.12.0-0.1.a74b1717
+- Update to new version do bootstrap from scratch
+
+* Fri May 6 2011 Alexander Kurtakov <akurtako@redhat.com> 0.10.0-3
+- Non-bootstrap build.
+
+* Tue May  3 2011 Stanislav Ochotnicky <sochotnicky@redhat.com> - 0.10.0-2
+- Add README and make build more silent
+
+* Tue Mar 29 2011 Stanislav Ochotnicky <sochotnicky@redhat.com> - 0.10.0-1
+- First bootstrapped version
