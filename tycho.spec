@@ -196,7 +196,7 @@ tar -xf %{SOURCE4}
 %patch7 -p1
 
 # Perform the 'minimal' (bootstrap) build of Tycho
-sh %{SOURCE2} %{eclipse_bootstrap}
+bash %{SOURCE2} %{eclipse_bootstrap}
 
 %patch7 -p1 -R
 
