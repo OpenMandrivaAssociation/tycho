@@ -54,6 +54,7 @@ Patch7:         %{name}-fix-bootstrap-build.patch
 
 BuildArch:      noarch
 
+BuildRequires:	zip
 BuildRequires:  java-devel
 BuildRequires:  maven-local
 BuildRequires:  maven-clean-plugin
