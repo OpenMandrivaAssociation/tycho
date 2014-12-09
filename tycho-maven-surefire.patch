@@ -1,7 +1,7 @@
-From 6885825adb193f8d69889a0f13de8b15506753ab Mon Sep 17 00:00:00 2001
+From ef54fab21914153917e55077baae71b10e9d1f53 Mon Sep 17 00:00:00 2001
 From: Jan Sievers <jan.sievers@sap.com>
 Date: Tue, 4 Sep 2012 16:02:52 +0200
-Subject: [PATCH] POC 386481 update maven surefire to latest version 2.15
+Subject: [PATCH] POC 386481 update maven surefire to latest version 2.17
 
 while SUREFIRE-825 and SUREFIRE-876 are fixed,
 there are several new problems:
@@ -26,8 +26,9 @@ Change-Id: Ibcb439a24add880c4cdafe67b42e29ca3cb14ff1
  .../META-INF/MANIFEST.MF                           |  2 +-
  .../build.properties                               |  2 +-
  .../META-INF/MANIFEST.MF                           |  7 +++--
- .../build.properties                               |  3 +-
+ .../build.properties                               |  2 +-
  .../org.eclipse.tycho.surefire.junit47/pom.xml     | 10 ++++++
+ .../junitcore/OsgiEnabledJUnitCoreProvider.java    |  4 +--
  .../META-INF/MANIFEST.MF                           |  6 ++--
  .../org.eclipse.tycho.surefire.osgibooter/pom.xml  | 10 ++++++
  .../surefire/osgibooter/OsgiSurefireBooter.java    | 36 ++++++++++++++--------
@@ -36,10 +37,10 @@ Change-Id: Ibcb439a24add880c4cdafe67b42e29ca3cb14ff1
  tycho-surefire/tycho-surefire-plugin/pom.xml       |  5 +++
  .../java/org/eclipse/tycho/surefire/TestMojo.java  | 29 +++++++++++++++--
  .../surefire/provider/impl/JUnit47Provider.java    |  2 +-
- 15 files changed, 116 insertions(+), 37 deletions(-)
+ 16 files changed, 118 insertions(+), 38 deletions(-)
 
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit/META-INF/MANIFEST.MF b/tycho-surefire/org.eclipse.tycho.surefire.junit/META-INF/MANIFEST.MF
-index 788207e..41d90f8 100644
+index bc764f3..6c0f0d4 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit/META-INF/MANIFEST.MF
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit/META-INF/MANIFEST.MF
 @@ -7,5 +7,5 @@ Fragment-Host: org.eclipse.tycho.surefire.osgibooter;bundle-version="0.14.0"
@@ -61,10 +62,10 @@ index 499ce76..fe88b19 100644
 +               jars/,\
                 plugin.properties
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit4/META-INF/MANIFEST.MF b/tycho-surefire/org.eclipse.tycho.surefire.junit4/META-INF/MANIFEST.MF
-index fefa9e8..b815348 100644
+index 49246f7..7361cae 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit4/META-INF/MANIFEST.MF
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit4/META-INF/MANIFEST.MF
-@@ -6,7 +6,7 @@ Bundle-Version: 0.19.0
+@@ -6,7 +6,7 @@ Bundle-Version: 0.20.0
  Fragment-Host: org.eclipse.tycho.surefire.osgibooter;bundle-version="0.14.0"
  Bundle-RequiredExecutionEnvironment: J2SE-1.5,
   JavaSE-1.6
@@ -85,10 +86,10 @@ index b787149..fe88b19 100644
 +               jars/,\
                 plugin.properties
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit47/META-INF/MANIFEST.MF b/tycho-surefire/org.eclipse.tycho.surefire.junit47/META-INF/MANIFEST.MF
-index 1fd1ea3..978a955 100644
+index 5e0aea7..2d3c2f6 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit47/META-INF/MANIFEST.MF
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit47/META-INF/MANIFEST.MF
-@@ -6,11 +6,14 @@ Bundle-Version: 0.19.0
+@@ -6,11 +6,14 @@ Bundle-Version: 0.20.0
  Fragment-Host: org.eclipse.tycho.surefire.osgibooter;bundle-version="0.16.0"
  Bundle-RequiredExecutionEnvironment: J2SE-1.5
  Bundle-ClassPath: .,
@@ -106,10 +107,10 @@ index 1fd1ea3..978a955 100644
 + org.junit.runner.manipulation;version="[4.7,5)"
  Bundle-Vendor: %providerName
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit47/build.properties b/tycho-surefire/org.eclipse.tycho.surefire.junit47/build.properties
-index 716961d..2589258 100644
+index 61905c2..41bdc39 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit47/build.properties
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit47/build.properties
-@@ -10,8 +10,7 @@
+@@ -10,7 +10,7 @@
  ###############################################################################
  bin.includes = .,\
                 META-INF/,\
@@ -118,9 +119,8 @@ index 716961d..2589258 100644
                 plugin.properties,\
                 about.html,\
                 about_files/
--source.. = src/
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit47/pom.xml b/tycho-surefire/org.eclipse.tycho.surefire.junit47/pom.xml
-index 7d08daf..442f830 100644
+index 0b8c582..0147a32 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit47/pom.xml
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit47/pom.xml
 @@ -44,6 +44,16 @@
@@ -140,8 +140,30 @@ index 7d08daf..442f830 100644
  							</artifactItems>
  						</configuration>
  					</execution>
+diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit47/src/main/java/org/apache/maven/surefire/junitcore/OsgiEnabledJUnitCoreProvider.java b/tycho-surefire/org.eclipse.tycho.surefire.junit47/src/main/java/org/apache/maven/surefire/junitcore/OsgiEnabledJUnitCoreProvider.java
+index eaa8dc4..3b8ca14 100644
+--- a/tycho-surefire/org.eclipse.tycho.surefire.junit47/src/main/java/org/apache/maven/surefire/junitcore/OsgiEnabledJUnitCoreProvider.java
++++ b/tycho-surefire/org.eclipse.tycho.surefire.junit47/src/main/java/org/apache/maven/surefire/junitcore/OsgiEnabledJUnitCoreProvider.java
+@@ -105,7 +105,7 @@ public class OsgiEnabledJUnitCoreProvider
+         }
+         final Map<String, TestSet> testSetMap = new ConcurrentHashMap<String, TestSet>();
+ 
+-        RunListener listener = ConcurrentReporterManager.createInstance( testSetMap, reporterFactory,
++        RunListener listener = ConcurrentRunListener.createInstance( testSetMap, reporterFactory,
+                                                                          jUnitCoreParameters.isParallelClasses(),
+                                                                          jUnitCoreParameters.isParallelBoth(),
+                                                                          consoleLogger );
+@@ -115,7 +115,7 @@ public class OsgiEnabledJUnitCoreProvider
+         org.junit.runner.notification.RunListener jUnit4RunListener = new OsgiEnabledJUnitCoreRunListener( listener, testSetMap );
+         customRunListeners.add( 0, jUnit4RunListener );
+ 
+-        JUnitCoreWrapper.execute( testsToRun, jUnitCoreParameters, customRunListeners );
++        JUnitCoreWrapper.execute( testsToRun, jUnitCoreParameters, customRunListeners, org.junit.runner.manipulation.Filter.ALL );
+         return reporterFactory.close();
+     }
+ 
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/META-INF/MANIFEST.MF b/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/META-INF/MANIFEST.MF
-index 09cf7bc..25e3618 100644
+index b45a0a9..1c772c0 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/META-INF/MANIFEST.MF
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/META-INF/MANIFEST.MF
 @@ -4,8 +4,10 @@ Require-Bundle: org.eclipse.osgi;bundle-version="3.2.2",
@@ -154,11 +176,11 @@ index 09cf7bc..25e3618 100644
 + jars/surefire-api-2.15.jar,
 + jars/maven-surefire-common-2.15.jar,
 + jars/plexus-utils-3.0.jar
- Bundle-Version: 0.19.0
+ Bundle-Version: 0.20.0
  Bundle-Name: Tycho Surefire OSGi Booter Eclipse Application (Incubation)
  Bundle-ManifestVersion: 2
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/pom.xml b/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/pom.xml
-index 6546f70..815cdee 100644
+index 92a30b9..6702533 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/pom.xml
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/pom.xml
 @@ -52,6 +52,16 @@
@@ -311,7 +333,7 @@ index c94d3ea..fc606b0 100644
  
  }
 diff --git a/tycho-surefire/pom.xml b/tycho-surefire/pom.xml
-index 811dff0..843fdd4 100644
+index f97e666..f6bf5aa 100644
 --- a/tycho-surefire/pom.xml
 +++ b/tycho-surefire/pom.xml
 @@ -26,7 +26,7 @@
@@ -324,7 +346,7 @@ index 811dff0..843fdd4 100644
  
  	<modules>
 diff --git a/tycho-surefire/tycho-surefire-plugin/pom.xml b/tycho-surefire/tycho-surefire-plugin/pom.xml
-index b6aa41b..dad6835 100644
+index a772203..05dc1f3 100644
 --- a/tycho-surefire/tycho-surefire-plugin/pom.xml
 +++ b/tycho-surefire/tycho-surefire-plugin/pom.xml
 @@ -101,5 +101,10 @@
@@ -339,7 +361,7 @@ index b6aa41b..dad6835 100644
  	</dependencies>
  </project>
 diff --git a/tycho-surefire/tycho-surefire-plugin/src/main/java/org/eclipse/tycho/surefire/TestMojo.java b/tycho-surefire/tycho-surefire-plugin/src/main/java/org/eclipse/tycho/surefire/TestMojo.java
-index ce598f5..ccdf0b2 100644
+index 4554384..be22b0a 100644
 --- a/tycho-surefire/tycho-surefire-plugin/src/main/java/org/eclipse/tycho/surefire/TestMojo.java
 +++ b/tycho-surefire/tycho-surefire-plugin/src/main/java/org/eclipse/tycho/surefire/TestMojo.java
 @@ -20,6 +20,7 @@ import java.net.MalformedURLException;
@@ -362,7 +384,7 @@ index ce598f5..ccdf0b2 100644
  import org.apache.maven.toolchain.Toolchain;
  import org.apache.maven.toolchain.ToolchainManager;
  import org.codehaus.plexus.util.FileUtils;
-@@ -905,6 +907,27 @@ public class TestMojo extends AbstractMojo {
+@@ -904,6 +906,27 @@ public class TestMojo extends AbstractMojo {
              result.put("perCoreThreadCount", String.valueOf(perCoreThreadCount));
              result.put("useUnlimitedThreads", String.valueOf(useUnlimitedThreads));
          }
@@ -390,7 +412,7 @@ index ce598f5..ccdf0b2 100644
          return result;
      }
  
-@@ -949,7 +972,7 @@ public class TestMojo extends AbstractMojo {
+@@ -948,7 +971,7 @@ public class TestMojo extends AbstractMojo {
          case 0:
              getLog().info("All tests passed!");
              break;
@@ -399,7 +421,7 @@ index ce598f5..ccdf0b2 100644
              String message = "No tests found.";
              if (failIfNoTests) {
                  throw new MojoFailureException(message);
-@@ -957,7 +980,7 @@ public class TestMojo extends AbstractMojo {
+@@ -956,7 +979,7 @@ public class TestMojo extends AbstractMojo {
                  getLog().warn(message);
              }
              break;
@@ -422,5 +444,5 @@ index edcc46a..5d62d3d 100644
  
      public Version getVersion() {
 -- 
-1.8.3.1
+1.8.5.3
 

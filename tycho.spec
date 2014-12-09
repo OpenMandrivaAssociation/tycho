@@ -1,7 +1,17 @@
 %{?_javapackages_macros:%_javapackages_macros}
 # Bootstrap build
-# Set this if Tycho and Eclipse are not in buildroot
-%global bootstrap 0
+# Tycho depends on itself, and Eclipse to build but in certain cases
+# these requirements may not be satisfiable.
+
+# Set 'tycho_bootstrap' if Tycho from buildroot is broken or non-existent
+# This basically uses javac + xmvn to build only the Tycho components
+# required to perform a full Tycho build
+# Most common usage : A library (in Fedora) used by Tycho's runtime broke API
+%global tycho_bootstrap 1
+# Set 'eclipse_bootstrap' if Eclipse from buildroot cannot help build Tycho
+# This basically provides a location for usage of pre-bundled Eclipse
+# Possible uses : Need to build Tycho before Eclipse in fresh buildroot
+%global eclipse_bootstrap 0
 # When building version under development (non-release)
 # %%global snap -SNAPSHOT
 %global snap %{nil}
@@ -9,26 +19,25 @@
 %define __requires_exclude osgi*
 
 Name:           tycho
-Version:        0.19.0
-Release:        1.1%{?dist}
-Summary:        Plugins and extensions to build Eclipse plugins and OSGI bundles with Maven
+Version:        0.20.0
+Release:        1%{?dist}
+Summary:        Plugins and extensions for building Eclipse plugins and OSGI bundles with Maven
 
-
+Group:          System/Libraries
 # license file is missing but all files having some licensing information are ASL 2.0
 License:        ASL 2.0
-URL:            http://tycho.sonatype.org/
-Source0:        http://git.eclipse.org/c/tycho/org.eclipse.tycho.git/snapshot/tycho-0.19.x.tar.bz2
+URL:            http://eclipse.org/tycho
+Source0:        http://git.eclipse.org/c/tycho/org.eclipse.tycho.git/snapshot/tycho-0.20.0.tar.bz2
 
 # this is a workaround for maven-plugin-plugin changes that happened after
 # version 2.4.3 (impossible to have empty mojo created as aggregate). This
 # should be fixed upstream properly
 Source1:        EmptyMojo.java
-# we need to make sure we are using maven 3 deps
-Source2:        depmap.xml
+Source2:        %{name}-bootstrap.sh
 Source3:        copy-platform-all
-# Bootstrap repo for building when Tycho and Eclipse not built.
-%if %{bootstrap}
-Source4:        maven-repo.tar.xz
+# Fedora Eclipse bundles (needed when Eclipse not present) to build Tycho
+%if %{eclipse_bootstrap}
+Source4:        eclipse-bootstrap.tar.xz
 %endif
 
 Patch0:         %{name}-fix-build.patch
@@ -45,7 +54,6 @@ Patch7:         %{name}-fix-bootstrap-build.patch
 
 BuildArch:      noarch
 
-BuildRequires:  jpackage-utils
 BuildRequires:  java-devel
 BuildRequires:  maven-local
 BuildRequires:  maven-clean-plugin
@@ -56,35 +64,47 @@ BuildRequires:  maven-jar-plugin
 BuildRequires:  maven-javadoc-plugin
 BuildRequires:  maven-release-plugin
 BuildRequires:  maven-resources-plugin
-BuildRequires:  maven-shared-verifier
-BuildRequires:  maven-shared-osgi
+BuildRequires:  maven-verifier
 BuildRequires:  maven-surefire-plugin
 BuildRequires:  maven-surefire-provider-junit
-BuildRequires:  maven-surefire-provider-junit4
-BuildRequires:  objectweb-asm4
+BuildRequires:  objectweb-asm
 BuildRequires:  plexus-containers-component-metadata
+BuildRequires:  apache-commons-exec
 BuildRequires:  decentxml
-BuildRequires:  easymock3
+BuildRequires:  easymock
 BuildRequires:  ecj
 BuildRequires:  maven-plugin-testing-harness
-%if ! %{bootstrap}
-BuildRequires:  osgi(org.eclipse.jdt)
+%if ! %{tycho_bootstrap}
 BuildRequires:  %{name}
 %endif
+%if %{eclipse_bootstrap}
+# Dependencies for Eclipse bundles we use
+BuildRequires:  icu4j-eclipse
+BuildRequires:  geronimo-annotation
+BuildRequires:  sac
+BuildRequires:  sat4j
+%else
+BuildRequires:  eclipse-platform
+%endif
+BuildRequires:  jetty-http
+BuildRequires:  jetty-util
+BuildRequires:  jetty-security
+BuildRequires:  jetty-server
+BuildRequires:  jetty-servlet
 BuildRequires:  maven-shared-utils
 BuildRequires:  mockito
 
-Requires:       jpackage-utils
+Requires:       apache-commons-exec
 Requires:       decentxml
 Requires:       maven-local
 Requires:       maven-clean-plugin
 Requires:       maven-dependency-plugin
-Requires:       maven-shared-verifier
-Requires:       maven-surefire-provider-junit4
-Requires:       objectweb-asm4
+Requires:       maven-verifier
+Requires:       maven-surefire-provider-junit
+Requires:       objectweb-asm
 Requires:       ecj
-%if ! %{bootstrap}
-Requires:       osgi(org.eclipse.platform)
+%if ! %{eclipse_bootstrap}
+Requires:       eclipse-platform
 %endif
 
 # Tycho always tries to resolve all build plugins, even if they are
@@ -99,6 +119,10 @@ Requires:       maven-jar-plugin
 Requires:       maven-resources-plugin
 Requires:       maven-site-plugin
 Requires:       maven-surefire-plugin
+%if %{tycho_bootstrap}
+BuildRequires:       maven-deploy-plugin
+BuildRequires:       maven-site-plugin
+%endif
 
 
 %description
@@ -130,14 +154,14 @@ no duplication of metadata between POM and OSGi metadata.
 
 %package javadoc
 Summary:        Javadocs for %{name}
-
+Group:          Documentation
 Requires:       jpackage-utils
 
 %description javadoc
 This package contains the API documentation for %{name}.
 
 %prep
-%setup -q -n %{name}-0.19.x
+%setup -q -n %{name}-0.20.0
 
 %patch0 -p1
 %patch1 -p1
@@ -159,26 +183,40 @@ pushd tycho-maven-plugin/src/main/java/org/fedoraproject
 cp %{SOURCE1} .
 popd
 
+# These units cannot be found during a regular build
+sed -i '/^<unit id=.*$/d' tycho-bundles/tycho-bundles-target/tycho-bundles-target.target
+
 # Bootstrap Build
-%if %{bootstrap}
+%if %{eclipse_bootstrap}
 tar -xf %{SOURCE4}
+%endif
 
-# EXACT version in reactor cache to build against when bootstrapping
-# If we built our own Tycho locally and put it into reactor cache instead
-# of using upstream's then we need to make sure the build finds it.
-sed -i 's/<tychoBootstrapVersion>0.16.0<\/tychoBootstrapVersion>/<tychoBootstrapVersion>0.18.0<\/tychoBootstrapVersion>/' pom.xml
-
-# gid:aid used by bootstrapped build dependencies
-mkdir -p .m2/org/ow2/asm/asm-debug-all/4.0/
-pushd .m2/org/ow2/asm/asm-debug-all/4.0/
-ln -s %{_mavenpomdir}/JPP.objectweb-asm4-asm-all.pom asm-debug-all-4.0.pom
-ln -s %{_javadir}/objectweb-asm4/asm-all.jar asm-debug-all-4.0.jar
-popd
+%if %{tycho_bootstrap}
 
 %patch7 -p1
 
-# Tycho can't use cached composite repository metadata so use other type
-sed -i 's/releases\/kepler\//releases\/kepler\/201306260900/' tycho-bundles/tycho-bundles-target/tycho-bundles-target.target
+# Perform the 'minimal' (bootstrap) build of Tycho
+%{SOURCE2} %{eclipse_bootstrap}
+
+%patch7 -p1 -R
+
+# EXACT version in reactor cache to build against (%%{version}-SNAPSHOT)
+sed -i 's/<tychoBootstrapVersion>0.18.1<\/tychoBootstrapVersion>/<tychoBootstrapVersion>0.20.0-SNAPSHOT<\/tychoBootstrapVersion>/' pom.xml
+
+# Tests are skipped anyways, so remove some test dependencies
+%pom_xpath_remove "pom:dependency[pom:classifier='tests']" tycho-compiler-plugin
+%pom_xpath_remove "pom:dependency[pom:classifier='tests']" tycho-packaging-plugin
+
+cp %{SOURCE3} ./
+%if %{eclipse_bootstrap}
+# Create the Target Platform for the final build
+mkdir -p .m2/p2/repo-sdk/plugins
+for pdir in `find $(pwd)/bootstrap/ -type d -name plugins`; do
+  for p in $pdir/* ; do
+    ln -s -t .m2/p2/repo-sdk/plugins $p
+  done
+done
+%endif
 
 # Non-Bootstrap Build
 %else
@@ -186,9 +224,6 @@ sed -i 's/releases\/kepler\//releases\/kepler\/201306260900/' tycho-bundles/tych
 # Tests are skipped anyways, so remove some test dependencies
 %pom_xpath_remove "pom:dependency[pom:classifier='tests']" tycho-compiler-plugin
 %pom_xpath_remove "pom:dependency[pom:classifier='tests']" tycho-packaging-plugin
-
-# These units cannot be found during a regular build
-sed -i '/^<unit id=.*$/d' tycho-bundles/tycho-bundles-target/tycho-bundles-target.target
 
 # installed version of Tycho
 sysVer=`grep -C 1 "<artifactId>tycho</artifactId>" %{_mavenpomdir}/JPP.tycho-main.pom | grep "version" | sed 's/.*>\(.*\)<.*/\1/'`
@@ -204,18 +239,18 @@ if [ "${sysVer}" == "${buildVer}" ]; then
 echo "Performing intermediary build"
 %patch4 -p1
 
-mvn-rpmbuild -Dmaven.local.depmap.file=%{SOURCE2} -DskipTychoVersionCheck -Dmaven.test.skip=true install javadoc:aggregate
+xmvn -o -Dmaven.test.skip=true -Dmaven.repo.local=$(pwd)/.m2 install
 
 %patch4 -p1 -R
 
 # EXACT version in reactor cache to build against (%%{version}-SNAPSHOT)
-sed -i 's/<tychoBootstrapVersion>0.18.1<\/tychoBootstrapVersion>/<tychoBootstrapVersion>0.19.0-SNAPSHOT<\/tychoBootstrapVersion>/' pom.xml
+sed -i 's/<tychoBootstrapVersion>0.18.1<\/tychoBootstrapVersion>/<tychoBootstrapVersion>0.20.0-SNAPSHOT<\/tychoBootstrapVersion>/' pom.xml
 fi
 
 %endif
 
 %build
-mvn-rpmbuild -Dmaven.local.depmap.file=%{SOURCE2} -DskipTychoVersionCheck -Dmaven.test.skip=true clean install javadoc:aggregate
+xmvn -o -Dmaven.test.skip=true -Dmaven.repo.local=$(pwd)/.m2 clean install org.apache.maven.plugins:maven-javadoc-plugin:aggregate
 
 %install
 
@@ -234,7 +269,7 @@ for mod in target-platform-configuration tycho-compiler-{jdt,plugin} \
    aid=`basename $mod`
    install -pm 644 $mod/pom.xml  $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-$aid.pom
    install -m 644 $mod/target/$aid-%{version}%{snap}.jar $RPM_BUILD_ROOT%{_javadir}/%{name}/$aid.jar
-   %add_maven_depmap JPP.%{name}-$aid.pom %{name}/$aid.jar -a "org.eclipse.tycho:$aid,org.sonatype.tycho:$aid"
+   %add_maven_depmap JPP.%{name}-$aid.pom %{name}/$aid.jar -a "org.eclipse.tycho:$aid"
 done
 
 # pom installation
@@ -243,28 +278,26 @@ for pommod in tycho-p2 tycho-bundles tycho-surefire \
    aid=`basename $pommod`
    install -pm 644 $pommod/pom.xml \
                $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-$aid.pom
-   %add_maven_depmap JPP.%{name}-$aid.pom -a "org.eclipse.tycho:$aid,org.sonatype.tycho:$aid"
+   %add_maven_depmap JPP.%{name}-$aid.pom -a "org.eclipse.tycho:$aid"
 done
 
 # p2 runtime
-pushd tycho-bundles/tycho-bundles-external
-install -pm 644 pom.xml $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-tycho-bundles-external.pom
-install -m 644 target/tycho-bundles-external-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external.zip
-ln -s tycho-bundles-external.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external.jar
-%add_maven_depmap -f zip JPP.%{name}-tycho-bundles-external.pom %{name}/tycho-bundles-external.jar -a "org.eclipse.tycho:tycho-bundles-external,org.sonatype.tycho:tycho-bundles-external"
+pushd .m2/org/eclipse/tycho/tycho-bundles-external/%{version}%{snap}/
+install -pm 644 tycho-bundles-external-%{version}*.pom $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-tycho-bundles-external.pom
+install -m 644 tycho-bundles-external-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external.zip
+%add_maven_depmap JPP.%{name}-tycho-bundles-external.pom %{name}/tycho-bundles-external.zip -a "org.eclipse.tycho:tycho-bundles-external"
 popd
 
 # main
 install -pm 644 pom.xml  $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-main.pom
-%add_maven_depmap JPP.%{name}-main.pom -a "org.eclipse.tycho:$aid,org.sonatype.tycho:$aid"
+%add_maven_depmap JPP.%{name}-main.pom
 
 # standalone p2 director
-pushd .m2/org/eclipse/tycho/tycho-standalone-p2-director/%{version}*/
+pushd .m2/org/eclipse/tycho/tycho-standalone-p2-director/%{version}%{snap}/
 install -m 644 tycho-standalone-p2-director-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-standalone-p2-director.zip
-ln -s tycho-standalone-p2-director.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-standalone-p2-director.jar
 install -pm 644 tycho-standalone-p2-director-%{version}*.pom $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-tycho-standalone-p2-director.pom
 popd
-%add_maven_depmap -f zip JPP.%{name}-tycho-standalone-p2-director.pom tycho/tycho-standalone-p2-director.jar -a "org.eclipse.tycho:tycho-standalone-p2-director,org.sonatype.tycho:tycho-standalone-p2-director"
+%add_maven_depmap JPP.%{name}-tycho-standalone-p2-director.pom tycho/tycho-standalone-p2-director.zip -a "org.eclipse.tycho:tycho-standalone-p2-director"
 
 # javadoc
 install -dm 755 $RPM_BUILD_ROOT%{_javadocdir}/%{name}
@@ -272,36 +305,30 @@ cp -pr target/site/api*/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}
 
 install -pm 755 %{SOURCE3} $RPM_BUILD_ROOT%{_javadir}/%{name}/copy-platform-all
 
-%if %{bootstrap}
+%if %{eclipse_bootstrap}
 # org.eclipse.osgi
-osgiJarPath=`find ".m2" -name "org.eclipse.osgi_*.jar"`
+osgiJarPath=`find ".m2/org" -name "org.eclipse.osgi_*.jar"`
 osgiJar=`basename $osgiJarPath`
 osgiVer=`echo $osgiJar | sed 's/^.*_//' | sed 's/.jar//'`
 
-mvn-rpmbuild org.apache.maven.plugins:maven-install-plugin:install-file \
--Dfile=$osgiJarPath \
--Dpackaging=jar \
--DgroupId=org.eclipse.tycho \
--DartifactId=org.eclipse.osgi \
--Dversion=$osgiVer
+# http://git.eclipse.org/c/linuxtools/org.eclipse.linuxtools.eclipse-build.git/tree/externalpoms/org.eclipse.osgi-3.6.0.v20100517.pom
+echo '<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd" xsi:noNamespaceSchemaLocation="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.eclipse.osgi</groupId>
+  <artifactId>org.eclipse.osgi</artifactId>
+  <version>3.6.0.v20100517</version>
+  <description>OSGi System Bundle %%systemBundle</description>
+  <!-- See https://issues.sonatype.org/browse/OSSRH-739 -->
+</project>' > JPP.tycho-osgi.pom
 
-osgiPomPath=`find ".m2/org/eclipse/tycho/org.eclipse.osgi" -name "org.eclipse.osgi-$osgiVer.pom"`
-
-install -pm 644 $osgiPomPath $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.tycho-osgi.pom
+install -pm 644 JPP.tycho-osgi.pom $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.tycho-osgi.pom
 install -m 644 $osgiJarPath $RPM_BUILD_ROOT%{_javadir}/%{name}/osgi.jar
 %add_maven_depmap JPP.%{name}-osgi.pom %{name}/osgi.jar -a "org.eclipse.tycho:org.eclipse.osgi"
 %endif
 
-# This is a temporary workaround for rhbz#1004310.  This is a hack,
-# but it is needed to make tycho work until this bug is fixed
-# properly.
-sed -i 's|<maven>|&<extension>zip</extension>|' \
-    $RPM_BUILD_ROOT%{_mavendepmapfragdir}/%{name}-zip
-
-%files
+%files -f .mfiles
 %{_mavenpomdir}/*
-%{_mavendepmapfragdir}/%{name}
-%{_mavendepmapfragdir}/%{name}-zip
 %{_javadir}/%{name}/
 %doc README.md
 
@@ -309,6 +336,48 @@ sed -i 's|<maven>|&<extension>zip</extension>|' \
 %{_javadocdir}/%{name}
 
 %changelog
+* Mon Mar 24 2014 Roland Grunberg <rgrunber@redhat.com> - 0.20.0-1
+- Update to 0.20.0 Release.
+
+* Wed Mar 12 2014 Roland Grunberg <rgrunber@redhat.com> - 0.19.0-11
+- Respect %%{eclipse_bootstrap} flag in tycho-bootstrap.sh.
+- Update Eclipse bootstrap cache.
+- Fix Equinox Launcher usage logic in copy-platform-all.
+
+* Thu Mar 06 2014 Roland Grunberg <rgrunber@redhat.com> - 0.19.0-10
+- Non-bootstrap build.
+
+* Thu Mar 06 2014 Roland Grunberg <rgrunber@redhat.com> - 0.19.0-9.1
+- Do not check %%{_libdir}/eclipse plugins/features folders twice.
+
+* Wed Feb 26 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.19.0-9
+- Improve logging and error handling fop copy-platform-all
+
+* Wed Jan 15 2014 Roland Grunberg <rgrunber@redhat.com> - 0.19.0-8
+- Perform a pure bootstrap build.
+- Fix issues with bootstrap build.
+
+* Thu Jan 09 2014 Roland Grunberg <rgrunber@redhat.com> - 0.19.0-7
+- Fix bootstrap build.
+
+* Mon Jan  6 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.19.0-6
+- Fix usage of %%add_maven_depmap for zip files
+- Resolves: rhbz#1004310
+
+* Mon Dec 9 2013 Alexander Kurtakov <akurtako@redhat.com> 0.19.0-5
+- Switch to using %%mvn_build.
+- Update BR/R names.
+- Adapt to asm5.
+
+* Thu Nov 21 2013 Roland Grunberg <rgrunber@redhat.com> - 0.19.0-4
+- Return expected reactor cache location when XMvn resolution fails.
+
+* Wed Nov 20 2013 Roland Grunberg <rgrunber@redhat.com> - 0.19.0-3
+- Bump release for rebuild (Bug 1031769).
+
+* Mon Nov 18 2013 Roland Grunberg <rgrunber@redhat.com> - 0.19.0-2
+- Reduce length of file lock name when file is in build directory.
+
 * Thu Oct 24 2013 Roland Grunberg <rgrunber@redhat.com> - 0.19.0-1
 - Update to 0.19.0 Release.
 

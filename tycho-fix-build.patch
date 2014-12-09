@@ -1,4 +1,4 @@
-From 3db92ab9ddeecb949f0b45a4bd527a4b0b62444d Mon Sep 17 00:00:00 2001
+From 9e232ccfb26673afb80357d8dffadfb1e28f14f2 Mon Sep 17 00:00:00 2001
 From: Roland Grunberg <rgrunber@redhat.com>
 Date: Tue, 12 Jun 2012 09:56:38 -0400
 Subject: [PATCH] Fix the Tycho build to work on Fedora.
@@ -32,10 +32,10 @@ Change-Id: Ic8c0514c1fa10ee53580d2654ac6a363ccd66814
  11 files changed, 19 insertions(+), 25 deletions(-)
 
 diff --git a/pom.xml b/pom.xml
-index 273ca9e..5587d84 100644
+index ef34822..685cce7 100644
 --- a/pom.xml
 +++ b/pom.xml
-@@ -242,11 +242,6 @@ $CMD -DpomFile=org.eclipse.jdt.compiler.apt.pom \
+@@ -243,11 +243,6 @@ $CMD -DpomFile=org.eclipse.jdt.compiler.apt.pom \
  				<version>${jdtVersion}</version>
  			</dependency>
  			<dependency>
@@ -48,7 +48,7 @@ index 273ca9e..5587d84 100644
  				<artifactId>surefire-booter</artifactId>
  				<version>2.10</version>
 diff --git a/tycho-artifactcomparator/pom.xml b/tycho-artifactcomparator/pom.xml
-index ef8182a..80c7312 100644
+index a7836dc..50d90d9 100644
 --- a/tycho-artifactcomparator/pom.xml
 +++ b/tycho-artifactcomparator/pom.xml
 @@ -24,7 +24,7 @@
@@ -68,7 +68,7 @@ index ef8182a..80c7312 100644
 \ No newline at end of file
 +</project>
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/META-INF/MANIFEST.MF b/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/META-INF/MANIFEST.MF
-index 1d0965a..0a01dd5 100644
+index f934b66..5145072 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/META-INF/MANIFEST.MF
 +++ b/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/META-INF/MANIFEST.MF
 @@ -9,7 +9,7 @@ Fragment-Host: org.eclipse.tycho.p2.maven.repository
@@ -81,7 +81,7 @@ index 1d0965a..0a01dd5 100644
   org.eclipse.tycho.repository.local.testutil,
   org.eclipse.tycho.repository.streaming.testutil,
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/pom.xml b/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/pom.xml
-index 51dba13..9b2ffca 100644
+index fefde17..73c00f2 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/pom.xml
 +++ b/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/pom.xml
 @@ -37,7 +37,7 @@
@@ -135,7 +135,7 @@ index 57b4e10..47423e5 100644
          jetty.addConnector(connector);
  
 diff --git a/tycho-bundles/tycho-bundles-external/tycho-bundles-external.product b/tycho-bundles/tycho-bundles-external/tycho-bundles-external.product
-index 7ef22f6..d4cb907 100644
+index c10de9e..aaba0d3 100644
 --- a/tycho-bundles/tycho-bundles-external/tycho-bundles-external.product
 +++ b/tycho-bundles/tycho-bundles-external/tycho-bundles-external.product
 @@ -42,7 +42,6 @@
@@ -159,7 +159,7 @@ index 62b354d..11f65fb 100644
        <plugin id="org.eclipse.equinox.frameworkadmin"/>
        <plugin id="org.eclipse.equinox.frameworkadmin.equinox"/>
 diff --git a/tycho-compiler-jdt/pom.xml b/tycho-compiler-jdt/pom.xml
-index 790e756..9d83c7c 100644
+index dca4f8f..815ca50 100644
 --- a/tycho-compiler-jdt/pom.xml
 +++ b/tycho-compiler-jdt/pom.xml
 @@ -38,10 +38,6 @@
@@ -211,5 +211,5 @@ index a8173df..cf2cf57 100644
  
          return verifier;
 -- 
-1.8.3.1
+1.8.5.3
 
