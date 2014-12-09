@@ -209,6 +209,8 @@ sed -i 's/<tychoBootstrapVersion>0.18.1<\/tychoBootstrapVersion>/<tychoBootstrap
 %pom_xpath_remove "pom:dependency[pom:classifier='tests']" tycho-packaging-plugin
 
 cp %{SOURCE3} ./
+chmod 755 ./copy-platform-all
+
 %if %{eclipse_bootstrap}
 # Create the Target Platform for the final build
 mkdir -p .m2/p2/repo-sdk/plugins
