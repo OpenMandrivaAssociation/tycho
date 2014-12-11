@@ -97,6 +97,7 @@ BuildRequires:  jetty-server
 BuildRequires:  jetty-servlet
 BuildRequires:  maven-shared-utils
 BuildRequires:  mockito
+BuildRequires:	zip
 
 Requires:       apache-commons-exec
 Requires:       decentxml
