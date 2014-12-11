@@ -1,4 +1,4 @@
-From f2455f1142b7fc8570139d5fec8b5f22ebe5542c Mon Sep 17 00:00:00 2001
+From 03176de4589022cdb80672017080066b192116c8 Mon Sep 17 00:00:00 2001
 From: Mat Booth <mat.booth@redhat.com>
 Date: Thu, 10 Jul 2014 15:26:50 +0100
 Subject: [PATCH] Add "running env only" option to the p2-director-plugin.
@@ -6,33 +6,32 @@ Subject: [PATCH] Add "running env only" option to the p2-director-plugin.
 This options allows you to restrict assembling and archiving products
 to only the current running target environment.
 ---
- .../tycho/plugins/p2/director/AbstractProductMojo.java  | 17 +++++++++++++++++
- .../eclipse/tycho/plugins/p2/director/DirectorMojo.java |  3 +++
- .../tycho/plugins/p2/director/ProductArchiverMojo.java  |  3 +++
- 3 files changed, 23 insertions(+)
+ .../tycho/plugins/p2/director/AbstractProductMojo.java   | 16 ++++++++++++++++
+ .../eclipse/tycho/plugins/p2/director/DirectorMojo.java  |  3 +++
+ .../tycho/plugins/p2/director/ProductArchiverMojo.java   |  3 +++
+ 3 files changed, 22 insertions(+)
 
 diff --git a/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/AbstractProductMojo.java b/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/AbstractProductMojo.java
-index c34cb72..d605091 100644
+index c34cb72..a2e2f72 100644
 --- a/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/AbstractProductMojo.java
 +++ b/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/AbstractProductMojo.java
-@@ -106,6 +106,16 @@ abstract class AbstractProductMojo extends AbstractMojo {
-     private List<Product> products;
+@@ -112,6 +112,15 @@ abstract class AbstractProductMojo extends AbstractMojo {
+     @Parameter(property = "p2.timeout", defaultValue = "0")
+     private int forkedProcessTimeoutInSeconds;
  
-     /**
++    /**
 +     * <p>
 +     * Assemble and archive product installations for the running environment only. Setting this to
 +     * true will omit all target environments that do not exactly match the running environment.
 +     * </p>
-+     *
-+     * @parameter expression="${director.running.env.only}"
 +     */
++    @Parameter(defaultValue = "false", property = "director.running.env.only")
 +    private boolean runningEnvOnly;
 +
-+    /**
-      * Kill the forked process after a certain number of seconds. If set to 0, wait forever for the
-      * process, never timing out.
-      */
-@@ -148,4 +158,11 @@ abstract class AbstractProductMojo extends AbstractMojo {
+     int getForkedProcessTimeoutInSeconds() {
+         return forkedProcessTimeoutInSeconds;
+     }
+@@ -148,4 +157,11 @@ abstract class AbstractProductMojo extends AbstractMojo {
      static String getOsWsArch(TargetEnvironment env, char separator) {
          return env.getOs() + separator + env.getWs() + separator + env.getArch();
      }

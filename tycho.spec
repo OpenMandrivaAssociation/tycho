@@ -16,18 +16,18 @@
 # %%global snap -SNAPSHOT
 %global snap %{nil}
 
-%global fp_p2_sha 06155b
+%global fp_p2_sha 44022a
 %global fp_p2_version 0.0.1
 %global fp_p2_snap -SNAPSHOT
 
-%define __noautoreq '^osgi\\(.*$'
+%define __requires_exclude osgi*
 
 Name:           tycho
 Version:        0.21.0
-Release:        2
+Release:        14
 Summary:        Plugins and extensions for building Eclipse plugins and OSGI bundles with Maven
-
 Group:          System/Libraries
+
 # license file is missing but all files having some licensing information are ASL 2.0
 License:        ASL 2.0 and EPL
 URL:            http://eclipse.org/tycho
@@ -37,15 +37,17 @@ Source0:        http://git.eclipse.org/c/tycho/org.eclipse.tycho.git/snapshot/ty
 # version 2.4.3 (impossible to have empty mojo created as aggregate). This
 # should be fixed upstream properly
 Source1:        EmptyMojo.java
-Source2:        %{name}-bootstrap.sh
+Source2:        %{name}-scripts.sh
+Source3:        %{name}-bootstrap.sh
+Source4:        %{name}-debundle.sh
 # Fedora Eclipse bundles (needed when Eclipse not present) to build Tycho
 %if %{eclipse_bootstrap}
-Source4:        eclipse-bootstrap.tar.xz
+Source5:        eclipse-bootstrap.tar.xz
 %endif
 # Eclipse Plugin Project supporting filesystem as p2 repository
 # https://github.com/rgrunber/fedoraproject-p2
-# Generated using 'git archive --prefix=fedoraproject-p2/ -o fedoraproject-p2-%%{fp_p2_sha}.tar && xz fedoraproject-p2-%%{fp_p2_sha}.tar'
-Source5:        fedoraproject-p2-%{fp_p2_sha}.tar.xz
+# Generated using 'git archive --prefix=fedoraproject-p2/ -o fedoraproject-p2-%%{fp_p2_sha}.tar %%{fp_p2_sha} && xz fedoraproject-p2-%%{fp_p2_sha}.tar'
+Source6:        fedoraproject-p2-%{fp_p2_sha}.tar.xz
 
 Patch0:         %{name}-fix-build.patch
 # Upstream builds against maven-surefire 2.12.3
@@ -78,6 +80,7 @@ BuildRequires:  decentxml
 BuildRequires:  easymock
 BuildRequires:  ecj
 BuildRequires:  maven-plugin-testing-harness
+BuildRequires:  xmvn-parent-pom
 %if ! %{tycho_bootstrap}
 BuildRequires:  %{name}
 %endif
@@ -168,7 +171,9 @@ This package contains the API documentation for %{name}.
 %setup -q -n %{name}-0.21.0
 
 # Prepare fedoraproject-p2
-tar -xf %{SOURCE5}
+tar -xf %{SOURCE6}
+
+%pom_disable_module org.fedoraproject.p2.tests fedoraproject-p2
 
 %patch0 -p1
 %patch1 -p1
@@ -211,7 +216,7 @@ sed -i '/^<unit id=.*$/d' tycho-bundles/tycho-bundles-target/tycho-bundles-targe
 
 # Bootstrap Build
 %if %{eclipse_bootstrap}
-tar -xf %{SOURCE4}
+tar -xf %{SOURCE5}
 %endif
 
 %if %{tycho_bootstrap}
@@ -219,7 +224,8 @@ tar -xf %{SOURCE4}
 %patch5 -p1
 
 # Perform the 'minimal' (bootstrap) build of Tycho
-bash %{SOURCE2} %{eclipse_bootstrap}
+cp %{SOURCE2} %{SOURCE3} .
+bash %{name}-bootstrap.sh %{eclipse_bootstrap}
 
 %patch5 -p1 -R
 
@@ -236,7 +242,10 @@ mkdir boot
 
 # Copy Tycho POMs from system repo and set their versions to %%{version}-SNAPSHOT.
 for pom in $(grep 'pom</ns1:path>' $medadataFile | sed 's|.*>\(.*\)<.*|\1|'); do
-    sed s/$sysVer/%{version}-SNAPSHOT/g <$pom >boot/$(basename $pom)
+    sed '
+    s/$sysVer/%{version}-SNAPSHOT/g
+    s/%{fp_p2_version}%{fp_p2_snap}/%{fp_p2_version}/
+' <$pom >boot/$(basename $pom)
 done
 
 # Update Maven lifecycle mappings for Tycho packaging types provided by tycho-maven-plugin.
@@ -249,6 +258,7 @@ jar uf boot/tycho-maven-plugin.jar META-INF/plexus/components.xml
 sed '
   s|>/[^<]*/\([^/]*\.pom\)</ns1:path>|>'$PWD'/boot/\1</ns1:path>|
   s|>'$sysVer'</ns1:version>|>%{version}-SNAPSHOT</ns1:version><ns1:compatVersions><ns1:version>%{version}-SNAPSHOT</ns1:version></ns1:compatVersions>|
+  s|>'%{fp_p2_version}%{fp_p2_snap}'</ns1:version>|>%{fp_p2_version}</ns1:version><ns1:compatVersions><ns1:version>%{fp_p2_version}</ns1:version></ns1:compatVersions>|
   s|%{_javadir}/tycho/tycho-maven-plugin.jar|'$PWD'/boot/tycho-maven-plugin.jar|
 ' $medadataFile >boot/tycho-metadata.xml
 %mvn_config resolverSettings/metadataRepositories/repository $PWD/boot/tycho-metadata.xml
@@ -262,7 +272,7 @@ sed '
 %build
 xmvn -o -Dtycho-version=%{version}-SNAPSHOT -Dmaven.test.skip=true \
 -Dmaven.repo.local=$(pwd)/.m2 -Dfedora.p2.repos=$(pwd)/bootstrap \
--f fedoraproject-p2/org.fedoraproject.p2/pom.xml \
+-f fedoraproject-p2/pom.xml \
 clean install org.apache.maven.plugins:maven-javadoc-plugin:aggregate
 
 xmvn -o -DtychoBootstrapVersion=%{version}-SNAPSHOT -Dmaven.test.skip=true \
@@ -271,17 +281,24 @@ clean install org.apache.maven.plugins:maven-javadoc-plugin:aggregate
 
 %install
 
+cp %{SOURCE2} %{SOURCE4} .
+
 mkdir -p $RPM_BUILD_ROOT%{_javadir}/%{name}
 install -d -m 755 $RPM_BUILD_ROOT%{_mavenpomdir}
 
-# org.fedoraproject.p2
-mod=fedoraproject-p2/org.fedoraproject.p2
-aid=`basename $mod`
-pushd $mod
-install -pm 644 pom.xml $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-$aid.pom
-install -m 644 target/$aid-%{fp_p2_version}%{fp_p2_snap}.jar $RPM_BUILD_ROOT%{_javadir}/%{name}/$aid.jar
-popd
-%add_maven_depmap JPP.%{name}-$aid.pom %{name}/$aid.jar
+# fedoraproject-p2 parent
+mod=fedoraproject-p2
+install -pm 644 $mod/pom.xml $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-$mod.pom
+%add_maven_depmap JPP.%{name}-$mod.pom
+
+# fedoraproject-p2
+for mod in fedoraproject-p2/{org.fedoraproject.p2,xmvn-p2-installer-plugin}; do
+   echo $mod
+   aid=`basename $mod`
+   install -pm 644 $mod/pom.xml  $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-$aid.pom
+   install -m 644 $mod/target/$aid-%{fp_p2_version}%{fp_p2_snap}.jar $RPM_BUILD_ROOT%{_javadir}/%{name}/$aid.jar
+   %add_maven_depmap JPP.%{name}-$aid.pom %{name}/$aid.jar -a "org.eclipse.tycho:$aid"
+done
 
 # pom and jar installation
 for mod in target-platform-configuration tycho-compiler-{jdt,plugin} \
@@ -309,15 +326,26 @@ done
 
 # p2 runtime
 dir=.m2/org/eclipse/tycho/tycho-bundles-external/%{version}%{snap}
+%if ! %{eclipse_bootstrap}
+./%{name}-debundle.sh tycho-bundles/tycho-bundles-external/ $dir/tycho-bundles-external-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external-manifest.txt
+%endif
 install -pm 644 $dir/tycho-bundles-external-%{version}*.pom $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-tycho-bundles-external.pom
 install -m 644 $dir/tycho-bundles-external-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external.zip
 %add_maven_depmap JPP.%{name}-tycho-bundles-external.pom %{name}/tycho-bundles-external.zip -a "org.eclipse.tycho:tycho-bundles-external"
+%if ! %{eclipse_bootstrap}
+cp $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external-manifest.txt{,~}  # workaround for rhbz#1139180
+%add_maven_depmap org.eclipse.tycho:tycho-bundles-external:txt:manifest:%{version}%{snap} %{name}/tycho-bundles-external-manifest.txt
+mv $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external-manifest.txt{~,}  # workaround for rhbz#1139180
+%endif
 
 # main
 install -pm 644 pom.xml  $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-main.pom
 %add_maven_depmap JPP.%{name}-main.pom
 
 # standalone p2 director
+%if ! %{eclipse_bootstrap}
+./%{name}-debundle.sh tycho-bundles/tycho-standalone-p2-director/ .m2/org/eclipse/tycho/tycho-standalone-p2-director/%{version}%{snap}/tycho-standalone-p2-director-%{version}*.zip
+%endif
 pushd .m2/org/eclipse/tycho/tycho-standalone-p2-director/%{version}%{snap}/
 install -m 644 tycho-standalone-p2-director-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-standalone-p2-director.zip
 install -pm 644 tycho-standalone-p2-director-%{version}*.pom $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-tycho-standalone-p2-director.pom
@@ -362,14 +390,70 @@ install -m 644 $osgiStateJarPath $RPM_BUILD_ROOT%{_javadir}/%{name}/osgi.compati
 %add_maven_depmap JPP.%{name}-osgi.compatibility.state.pom %{name}/osgi.compatibility.state.jar -a "org.eclipse.tycho:org.eclipse.osgi.compatibility.state"
 %endif
 
+# Symlink XMvn P2 plugin with all dependencies so that it can be loaded by XMvn
+install -d -m 755 %{buildroot}%{_datadir}/xmvn/lib/installer/
+ln -s %{_javadir}/eclipse/osgi.jar %{buildroot}%{_datadir}/xmvn/lib/installer/
+ln -s %{_javadir}/%{name}/xmvn-p2-installer-plugin.jar %{buildroot}%{_datadir}/xmvn/lib/installer/
+ln -s %{_javadir}/%{name}/org.fedoraproject.p2.jar %{buildroot}%{_datadir}/xmvn/lib/installer/
+
 %files -f .mfiles
 %dir %{_javadir}/%{name}
+%{_datadir}/xmvn/lib/installer/*
 %doc README.md
 
 %files javadoc
 %{_javadocdir}/%{name}
 
 %changelog
+* Thu Sep 25 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.21.0-14
+- fedoraproject-p2: Fix requires generation bug
+
+* Wed Sep 24 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.21.0-13
+- fedoraproject-p2: Allow installation of source bundles
+
+* Mon Sep 22 2014 Roland Grunberg <rgrunber@redhat.com> - 0.21.0-12
+- Add Fedora system repos to target definition resolver.
+- Look for any IU if IU/Version query fails in target definition resolver.
+
+* Fri Sep 12 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.21.0-11
+- fedoraproject-p2: Allow installing the same symlink into separate dropins
+
+* Wed Sep 10 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.21.0-10
+- Fix tycho-bundles-external-manifest.txt generation
+
+* Wed Sep 10 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.21.0-9
+- fedoraproject-p2: Fix self-dependencies failing builds
+
+* Tue Sep 9 2014 Roland Grunberg <rgrunber@redhat.com> - 0.21.0-8
+- Make debundling more resilient to changes.
+- fedoraproject-p2: Update to latest (Fix metapackage merging).
+
+* Mon Sep  8 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.21.0-8
+- fedoraproject-p2: Import XMvn P2 plugin
+- fedoraproject-p2: Fix NPE bug
+- fedoraproject-p2: Avoid extracting tycho-bundles-external.zip
+
+* Fri Sep 05 2014 Roland Grunberg <rgrunber@redhat.com> - 0.21.0-7
+- Debundle tycho-bundles-external and tycho-standalone-p2-director.
+- Resolves: rhbz#789272
+
+* Thu Sep 04 2014 Roland Grunberg <rgrunber@redhat.com> - 0.21.0-6
+- Use fedoraproject-p2 to do OSGi bundle discovery.
+
+* Wed Sep 03 2014 Mat Booth <mat.booth@redhat.com> - 0.21.0-5
+- Include eclipse features dir in custom resolver
+
+* Wed Sep 03 2014 Roland Grunberg <rgrunber@redhat.com> - 0.21.0-4
+- fedoraproject-p2: Do not regenerate IU metadata on every query.
+
+* Thu Aug 28 2014 Mat Booth <mat.booth@redhat.com> - 0.21.0-3
+- Perform non-bootstrap build
+- Update running-env-only patch
+
+* Wed Aug 27 2014 Roland Grunberg <rgrunber@redhat.com> - 0.21.0-2.1
+- fedoraproject-p2: Fix issues with creation of feature IUs.
+- fedoraproject-p2: Fix jar corruption bug.
+
 * Thu Aug 21 2014 Roland Grunberg <rgrunber@redhat.com> - 0.21.0-2
 - Integrate fedoraproject-p2 into Tycho.
 

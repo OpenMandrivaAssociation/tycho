@@ -1,152 +1,12 @@
 #! /bin/bash
 
-function minibuild () {
-
-basedir=$1
-
-src=`cat "${basedir}/build.properties" | grep 'source..' | cut -d'=' -f2 | tr ' ' '\0'`
-output=`cat "${basedir}/build.properties" | grep 'output..' | cut -d'=' -f2 | tr ' ' '\0'`
-bName=`cat "${basedir}/META-INF/MANIFEST.MF" | grep 'Bundle-SymbolicName:' | sed 's/Bundle-SymbolicName: \([a-zA-Z0-9_.-]*\)\(;\)\?.*/\1/'`
-artifactId=`cat "${basedir}/pom.xml" | sed '/<parent>/,/<\/parent>/ d' | grep "<artifactId>" | sed 's/.*<artifactId>\(.*\)<\/artifactId>.*/\1/'`
-version=`cat "${basedir}/pom.xml" | grep "<version>" | sed 's/.*<version>\(.*\)<\/version>.*/\1/'`
-
-# External (System) dependencies
-if [ $# -eq 3 ]; then
-  mkdir -p "${basedir}/target/externalDeps"
-  copyBundles $3 "${basedir}/target/externalDeps"
-else
-  mkdir -p "${basedir}/target"
-fi
-
-mkdir -p "${basedir}/${output}"
-
-# Compile
-cp=
-if [ $# -gt 1 ]; then
-  cp='-classpath '$2':'"${basedir}"'/target/externalDeps/*'
-fi
-
-javac -d "${basedir}/${output}" \
-  $(for file in `find "${basedir}/${src}" -name "*.java"`; \
-    do echo -n "${file} "; \
-  done;) \
-  ${cp}
-
-# Package
-pushd ${basedir}
-pushd ${output}
-classfiles=`for file in $(find . -name "*.class"); do echo -n ' -C '${output} ${file} ; done;`
-popd
-jar -cfmv "target/${bName}-${version}.jar" 'META-INF/MANIFEST.MF' 'OSGI-INF' 'plugin.xml' 'about.html' 'plugin.properties' ${classfiles}
-popd
-
-# Install
-loc=".m2/org/eclipse/tycho/${artifactId}/${version}"
-mkdir -p ${loc}
-cp "${basedir}/target/${bName}-${version}.jar" ${loc}
-cp "${basedir}/pom.xml" "${loc}/${bName}-${version}.pom"
-
-}
-
-
-function copyBundles () {
-
-osgiLocations=( '/usr/share/java' '/usr/lib/java' '/usr/lib*/eclipse' )
-
-if [ ${eclipse_bootstrap} -eq 1 ]; then
-prefix="$(pwd)/bootstrap"
-osgiLocations=( ${osgiLocations[@]/#/${prefix}} )
-osgiLocations+=( ${osgiLocations[@]/${prefix}/} )
-fi
-
-wantedBundles=`echo $1 | tr ',' ' '`
-destDir=$2
-
-for loc in ${osgiLocations[@]} $(pwd)/bootstrap/extras ; do
-  for jar in `find ${loc} -name "*.jar"`; do
-    bsn=`readBSN ${jar}`
-    versionline=`unzip -p ${jar} 'META-INF/MANIFEST.MF' | grep 'Bundle-Version:'`
-    if [ -n "${bsn}" ]; then
-      vers=`echo "${versionline}" | sed 's/Bundle-Version: \([a-zA-Z0-9_.-]*\).*/\1/'`
-      echo ${wantedBundles} | grep -q "${bsn}"
-      if [ $? -eq 0 ]; then
-        cp ${jar} "${destDir}/${bsn}_${vers}.jar"
-        wantedBundles=`removeFromList "${wantedBundles}" "${bsn}"`
-      fi
-    fi
-  done
-done
-
-}
-
-function removeFromList () {
-arr=( ${1} )
-for (( i=0; i < ${#arr[@]}; i++ )); do
-  if [ "${arr[${i}]}" = "$2" ]; then
-    arr[${i}]=
-  fi
-done
-echo ${arr[@]}
-}
-
-function isolateProject () {
-
-sed -i '/<parent>/,/<\/parent>/ d' "$1/pom.xml"
-sed -i "/<modelVersion>/ a <groupId>org.eclipse.tycho<\/groupId><version>${v}<\/version>" "$1/pom.xml"
-
-sed -i "/<artifactId>org.eclipse.osgi<\/artifactId>/ a <version>${osgiV}</version>" "$1/pom.xml"
-sed -i "/<artifactId>org.eclipse.osgi.compatibility.state<\/artifactId>/ a <version>${osgiV}</version>" "$1/pom.xml"
-}
-
-function unifyProject () {
-
-aid=$(basename $(dirname $1))
-if [ "${aid}" = '.' ]; then
-  aid='tycho'
-fi
-sed -i "/<groupId>org.eclipse.tycho<\/groupId><version>${v}<\/version>/ d" "$1/pom.xml"
-sed -i "/<modelVersion>/ a <parent>\n<groupId>org.eclipse.tycho<\/groupId>\n<artifactId>${aid}<\/artifactId>\n<version>${preV}<\/version>\n<\/parent>" "$1/pom.xml"
-
-sed -i "/<version>${osgiV}<\/version>/ d" "$1/pom.xml"
-
-}
-
-function readBSN () {
-
-bsn=
-manEntryPat="^[a-zA-Z-]*:"
-foundBSNLine=0
-
-while read line; do
-if [ ${foundBSNLine} -eq 1 ]; then
-  echo ${line} | grep -qE ${manEntryPat}
-  if [ $? -eq 0 ]; then
-    break
-  else
-    bsn=${bsn}"`echo ${line} | sed 's/\([a-zA-Z0-9_.-]*\)\(;\)\?.*/\1/'`"
-  fi
-fi
-
-echo ${line} | grep -q "Bundle-SymbolicName:"
-if [ $? -eq 0 ]; then
-  bsn=`echo ${line} | grep 'Bundle-SymbolicName:' | sed 's/Bundle-SymbolicName: \([a-zA-Z0-9_.-]*\)\(;\)\?.*/\1/'`
-  echo ${line} | grep "Bundle-SymbolicName:" | grep -q ";"
-  if [ $? -eq 0 ]; then
-    break
-  fi
-  foundBSNLine=1
-fi
-done < <(unzip -p $1 'META-INF/MANIFEST.MF')
-
-echo ${bsn}
-
-}
-
+. $(pwd)/tycho-scripts.sh
 
 eclipse_bootstrap=$1
 preV='0.21.0'
 v='0.21.0-SNAPSHOT'
 osgiV='3.10.0.v20140328-1811'
+fp2V='0.0.1-SNAPSHOT'
 bundles=()
 bundles[0]='tycho-bundles/org.eclipse.tycho.embedder.shared'
 bundles[1]='tycho-bundles/org.eclipse.tycho.core.shared'
@@ -163,7 +23,7 @@ deps[1]="tycho-bundles/org.eclipse.tycho.embedder.shared/target/org.eclipse.tych
 deps[2]="tycho-bundles/org.eclipse.tycho.embedder.shared/target/org.eclipse.tycho.embedder.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.core.shared/target/org.eclipse.tycho.core.shared-${v}.jar"
 deps[3]="tycho-bundles/org.eclipse.tycho.embedder.shared/target/org.eclipse.tycho.embedder.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.core.shared/target/org.eclipse.tycho.core.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.resolver.shared/target/org.eclipse.tycho.p2.resolver.shared-${v}.jar"
 deps[4]="tycho-bundles/org.eclipse.tycho.embedder.shared/target/org.eclipse.tycho.embedder.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.core.shared/target/org.eclipse.tycho.core.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.resolver.shared/target/org.eclipse.tycho.p2.resolver.shared-${v}.jar"
-deps[5]="tycho-bundles/org.eclipse.tycho.embedder.shared/target/org.eclipse.tycho.embedder.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.core.shared/target/org.eclipse.tycho.core.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.resolver.shared/target/org.eclipse.tycho.p2.resolver.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.maven.repository/target/org.eclipse.tycho.p2.maven.repository-${v}.jar"
+deps[5]="tycho-bundles/org.eclipse.tycho.embedder.shared/target/org.eclipse.tycho.embedder.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.core.shared/target/org.eclipse.tycho.core.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.resolver.shared/target/org.eclipse.tycho.p2.resolver.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.maven.repository/target/org.eclipse.tycho.p2.maven.repository-${v}.jar:fedoraproject-p2/org.fedoraproject.p2/target/org.fedoraproject.p2-${fp2V}.jar"
 deps[6]="tycho-bundles/org.eclipse.tycho.embedder.shared/target/org.eclipse.tycho.embedder.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.core.shared/target/org.eclipse.tycho.core.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.resolver.shared/target/org.eclipse.tycho.p2.resolver.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.tools.shared/target/org.eclipse.tycho.p2.tools.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.maven.repository/target/org.eclipse.tycho.p2.maven.repository-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.resolver.impl/target/org.eclipse.tycho.p2.resolver.impl-${v}.jar"
 
 xtraDeps[0]=""
@@ -172,10 +32,23 @@ externalDeps[4]="org.eclipse.equinox.common,org.eclipse.equinox.p2.repository,or
 externalDeps[5]="org.eclipse.core.runtime,org.eclipse.equinox.security,org.eclipse.equinox.frameworkadmin.equinox,org.eclipse.equinox.frameworkadmin,org.eclipse.equinox.p2.core,org.eclipse.equinox.p2.metadata,org.eclipse.equinox.p2.publisher,org.eclipse.equinox.p2.publisher.eclipse,org.eclipse.equinox.p2.artifact.repository,org.eclipse.equinox.p2.metadata.repository,org.eclipse.equinox.p2.director,org.eclipse.equinox.p2.repository,org.eclipse.equinox.p2.updatesite,org.eclipse.core.net,org.eclipse.equinox.common,org.eclipse.osgi,org.eclipse.equinox.preferences"
 externalDeps[6]="org.eclipse.equinox.p2.director.app,org.eclipse.equinox.p2.core,org.eclipse.equinox.p2.publisher,org.eclipse.equinox.p2.updatesite,org.eclipse.core.runtime,org.eclipse.equinox.p2.metadata,org.eclipse.equinox.p2.repository,org.eclipse.equinox.p2.repository.tools,org.eclipse.equinox.p2.metadata.repository,org.eclipse.equinox.p2.artifact.repository,org.eclipse.equinox.p2.publisher.eclipse,org.eclipse.equinox.p2.engine,org.eclipse.equinox.p2.director,org.eclipse.osgi,org.eclipse.equinox.common,org.eclipse.equinox.app,org.eclipse.equinox.registry"
 
-xtraExternalDeps[0]="org.eclipse.osgi,org.eclipse.core.runtime,org.eclipse.equinox.common,org.eclipse.equinox.p2.metadata,org.eclipse.equinox.p2.repository,org.eclipse.equinox.p2.core,org.eclipse.equinox.p2.publisher.eclipse,org.eclipse.equinox.p2.publisher,org.eclipse.equinox.p2.touchpoint.eclipse,org.eclipse.equinox.p2.updatesite"
+xtraExternalDeps[0]="org.eclipse.osgi,org.eclipse.core.runtime,org.eclipse.equinox.common,org.eclipse.equinox.p2.metadata,org.eclipse.equinox.p2.repository,org.eclipse.equinox.p2.core,org.eclipse.equinox.p2.publisher.eclipse,org.eclipse.equinox.p2.publisher,org.eclipse.equinox.p2.touchpoint.eclipse,org.eclipse.equinox.p2.updatesite,org.eclipse.equinox.p2.repository.tools,org.eclipse.equinox.app,slf4j.api"
 
 reactorprojs=( 'tycho-embedder-api' 'tycho-metadata-model' 'sisu-equinox/sisu-equinox-api' 'sisu-equinox/sisu-equinox-embedder' 'tycho-core' 'tycho-packaging-plugin' 'tycho-p2/tycho-p2-facade' 'tycho-maven-plugin' 'tycho-p2/tycho-p2-repository-plugin' 'tycho-p2/tycho-p2-publisher-plugin' 'target-platform-configuration' 'tycho-artifactcomparator' 'sisu-equinox/sisu-equinox-launching' 'tycho-p2/tycho-p2-plugin' 'tycho-compiler-jdt' 'tycho-compiler-plugin' )
 
+for ((i=0; i < ${#xtraBundles[@]}; i++)) ;do
+  echo ''
+  echo 'Building ' ${xtraBundles[${i}]} '...'
+  echo ''
+  isolateProject ${xtraBundles[${i}]} ${fp2V}
+  minibuild ${xtraBundles[${i}]} "${xtraDeps[${i}]}" ${xtraExternalDeps[${i}]}
+  unifyProject ${xtraBundles[${i}]}
+done
+
+# TODO: stop minibuild function from hard-coding org/eclipse/tycho GID path
+dir=$(pwd)/.m2/org/fedoraproject/p2/org.fedoraproject.p2/
+mkdir -p ${dir}
+ln -s $(pwd)/.m2/org/eclipse/tycho/org.fedoraproject.p2/${fp2V} ${dir}
 
 for ((i=0; i < ${#bundles[@]}; i++)) ;do
   echo ''
@@ -184,13 +57,6 @@ for ((i=0; i < ${#bundles[@]}; i++)) ;do
   isolateProject ${bundles[${i}]}
   minibuild ${bundles[${i}]} "${deps[${i}]}" ${externalDeps[${i}]}
   unifyProject ${bundles[${i}]}
-done
-
-for ((i=0; i < ${#xtraBundles[@]}; i++)) ;do
-  echo ''
-  echo 'Building ' ${xtraBundles[${i}]} '...'
-  echo ''
-  minibuild ${xtraBundles[${i}]} "${xtraDeps[${i}]}" ${xtraExternalDeps[${i}]}
 done
 
 # Can't have empty mojo project

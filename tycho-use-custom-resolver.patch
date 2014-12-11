@@ -1,4 +1,4 @@
-From c6cfa4c4e6ce97cc634694987d9f87a032808e15 Mon Sep 17 00:00:00 2001
+From a8aaa1b1e97b9173f9a0816b6918faffd75817e6 Mon Sep 17 00:00:00 2001
 From: Roland Grunberg <rgrunber@redhat.com>
 Date: Tue, 12 Jun 2012 10:38:51 -0400
 Subject: [PATCH] Implement a custom resolver for Tycho in local mode.
@@ -7,9 +7,9 @@ When running in local mode, dependencies should be resolved by looking
 on the local system. Remote repositories should be ignored unless
 offline mode is disabled.
 
-Automatically create a local p2 repository of all bundles on the system
-so that they may be used for local dependency resolution. This is done
-using a modified version of Eclipse's copy-platform script.
+Use fedoraproject-p2 to resolve bundles from their system location.
+
+Relax constraints for bundles used in Tycho's Equinox runtime.
 
 Since Fedora 17, we need an Execution Environment of at least JavaSE-1.6
 for Eclipse bundles. Eclipse Juno platform bundles depend on
@@ -27,8 +27,10 @@ reactor cache, resolution should be attempted using the XMvn Resolver.
 
 Change-Id: Ia1ece07ece2412bc4a88901631f3f651ad2b634b
 ---
+ .../embedder/internal/DefaultEquinoxEmbedder.java  | 11 ++++-
+ .../META-INF/MANIFEST.MF                           |  3 +-
  .../p2/remote/RemoteRepositoryCacheManager.java    | 14 +++++++
- .../tycho/p2/target/TargetDefinitionResolver.java  | 12 ++++--
+ .../tycho/p2/target/TargetDefinitionResolver.java  | 48 ++++++++++++++++++++--
  .../p2/target/TargetPlatformBundlePublisher.java   | 15 ++-----
  .../tycho/p2/target/TargetPlatformFactoryImpl.java | 45 ++++++++++++++++++--
  .../tycho/p2/repository/LocalRepositoryReader.java | 44 +++++++++++++++++++-
@@ -39,9 +41,53 @@ Change-Id: Ia1ece07ece2412bc4a88901631f3f651ad2b634b
  .../tycho/core/osgitools/AbstractTychoProject.java | 23 +++++++++++
  .../tycho/core/osgitools/OsgiBundleProject.java    | 29 ++++++++++++-
  .../DefaultTargetPlatformConfigurationReader.java  |  6 ++-
- .../tycho/p2/resolver/P2DependencyResolver.java    | 48 ++++++++++++++++++++++
- 13 files changed, 253 insertions(+), 29 deletions(-)
+ tycho-p2/tycho-p2-facade/pom.xml                   |  5 +++
+ .../tycho/p2/resolver/P2DependencyResolver.java    | 30 ++++++++++++++
+ 16 files changed, 287 insertions(+), 32 deletions(-)
 
+diff --git a/sisu-equinox/sisu-equinox-embedder/src/main/java/org/eclipse/sisu/equinox/embedder/internal/DefaultEquinoxEmbedder.java b/sisu-equinox/sisu-equinox-embedder/src/main/java/org/eclipse/sisu/equinox/embedder/internal/DefaultEquinoxEmbedder.java
+index ed01c2d..759f005 100644
+--- a/sisu-equinox/sisu-equinox-embedder/src/main/java/org/eclipse/sisu/equinox/embedder/internal/DefaultEquinoxEmbedder.java
++++ b/sisu-equinox/sisu-equinox-embedder/src/main/java/org/eclipse/sisu/equinox/embedder/internal/DefaultEquinoxEmbedder.java
+@@ -230,7 +230,14 @@ public class DefaultEquinoxEmbedder extends AbstractLogEnabled implements Equino
+                     if (verIdx > 0) {
+                         bundles.append(name.substring(0, verIdx));
+                     } else {
+-                        throw new EquinoxEmbedderException("File name doesn't match expected pattern: " + file);
++                        // In Fedora, NAME_VERSION.QUALIFIER.jar is too fragile.
++                        // Let's also accept NAME.jar
++                        verIdx = name.lastIndexOf(".jar");
++                        if (verIdx > 0) {
++                            bundles.append(name.substring(0, verIdx));
++                        } else {
++                            throw new EquinoxEmbedderException("File name doesn't match expected pattern: " + file);
++                        }
+                     }
+                 }
+             }
+@@ -238,7 +245,7 @@ public class DefaultEquinoxEmbedder extends AbstractLogEnabled implements Equino
+     }
+ 
+     protected boolean isFrameworkBundle(File file) {
+-        return file.getName().startsWith("org.eclipse.osgi_");
++        return file.getName().startsWith("org.eclipse.osgi_") || file.getName().equals("org.eclipse.osgi.jar");
+     }
+ 
+     String getReferenceUrl(File file) {
+diff --git a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/META-INF/MANIFEST.MF b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/META-INF/MANIFEST.MF
+index cc5e9b3..85ff778 100644
+--- a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/META-INF/MANIFEST.MF
++++ b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/META-INF/MANIFEST.MF
+@@ -18,7 +18,8 @@ Require-Bundle: org.eclipse.core.runtime,
+  org.eclipse.equinox.p2.repository;bundle-version="2.0.0",
+  org.eclipse.equinox.p2.updatesite;bundle-version="1.0.200",
+  org.eclipse.core.net;bundle-version="1.2.100",
+- org.eclipse.tycho.p2.maven.repository;bundle-version="0.12.0"
++ org.eclipse.tycho.p2.maven.repository;bundle-version="0.12.0",
++ org.fedoraproject.p2
+ Bundle-RequiredExecutionEnvironment: J2SE-1.5
+ Bundle-ActivationPolicy: lazy
+ Export-Package: org.eclipse.tycho.p2.impl;x-friends:="org.eclipse.tycho.p2.impl.test",
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/remote/RemoteRepositoryCacheManager.java b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/remote/RemoteRepositoryCacheManager.java
 index 707b1c5..c8c4152 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/remote/RemoteRepositoryCacheManager.java
@@ -81,10 +127,22 @@ index 707b1c5..c8c4152 100644
          if (offline) {
              if (cacheFile != null) {
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/TargetDefinitionResolver.java b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/TargetDefinitionResolver.java
-index e8f7c3f..f4bb2d3 100644
+index e8f7c3f..b34512a 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/TargetDefinitionResolver.java
 +++ b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/TargetDefinitionResolver.java
-@@ -22,6 +22,7 @@ import java.util.Set;
+@@ -11,9 +11,11 @@
+ package org.eclipse.tycho.p2.target;
+ 
+ import java.net.URI;
++import java.nio.file.Paths;
+ import java.util.ArrayList;
+ import java.util.Collection;
+ import java.util.Collections;
++import java.util.HashSet;
+ import java.util.Iterator;
+ import java.util.LinkedHashSet;
+ import java.util.List;
+@@ -22,6 +24,7 @@ import java.util.Set;
  import org.eclipse.core.runtime.CoreException;
  import org.eclipse.core.runtime.IProgressMonitor;
  import org.eclipse.core.runtime.IStatus;
@@ -92,7 +150,15 @@ index e8f7c3f..f4bb2d3 100644
  import org.eclipse.equinox.p2.core.IProvisioningAgent;
  import org.eclipse.equinox.p2.core.ProvisionException;
  import org.eclipse.equinox.p2.metadata.IInstallableUnit;
-@@ -122,9 +123,14 @@ public class TargetDefinitionResolver {
+@@ -51,6 +54,7 @@ import org.eclipse.tycho.p2.util.resolution.ProjectorResolutionStrategy;
+ import org.eclipse.tycho.p2.util.resolution.SlicerResolutionStrategy;
+ import org.eclipse.tycho.repository.util.DuplicateFilteringLoggingProgressMonitor;
+ import org.eclipse.tycho.repository.util.StatusTool;
++import org.fedoraproject.p2.EclipseSystemLayout;
+ 
+ /**
+  * Class which performs target definition resolution. This class is used by the
+@@ -122,9 +126,35 @@ public class TargetDefinitionResolver {
  
                  List<IMetadataRepository> metadataRepositories = new ArrayList<IMetadataRepository>();
                  for (Repository repository : iuLocationDefinition.getRepositories()) {
@@ -107,9 +173,49 @@ index e8f7c3f..f4bb2d3 100644
 +                        artifactRepositories.add(repository.getLocation());
 +                        metadataRepositories.add(loadRepository(repository));
 +                    }
++                }
++                // Add Fedora Local P2 Repository when running in local mode
++                if (System.getProperty("TYCHO_MVN_LOCAL") != null || System.getProperty("TYCHO_MVN_RPMBUILD") != null) {
++                    final Set<String> allLocations = new HashSet<String>();
++                    final Set<String> roots = EclipseSystemLayout.getSCLRoots();
++
++                    for (String root : roots) {
++                        EclipseSystemLayout.initLocations(Paths.get(root), allLocations, allLocations, allLocations, false);
++                    }
++                    allLocations.addAll(EclipseSystemLayout.getUserDefinedBundleLocations());
++
++                    for (String loc : allLocations) {
++                        try {
++                            String uri = "fedora:" + loc;
++                            URI location = new URI(uri);
++                            repositoryIdManager.addMapping(uri, location);
++                            artifactRepositories.add(location);
++                            metadataRepositories.add(metadataManager.loadRepository(location, monitor));
++                        } catch (Exception e) {
++                        }
++                    }
                  }
  
                  IQueryable<IInstallableUnit> locationUnits = new CompoundQueryable<IInstallableUnit>(
+@@ -236,6 +266,18 @@ public class TargetDefinitionResolver {
+         IQuery<IInstallableUnit> latestMatchingIUQuery = QueryUtil.createLatestQuery(matchingIUQuery);
+ 
+         IQueryResult<IInstallableUnit> queryResult = units.query(latestMatchingIUQuery, monitor);
++
++        // If the iu/version can't be located then try to use an iu of any version
++        if ((System.getProperty("TYCHO_MVN_LOCAL") != null || System.getProperty("TYCHO_MVN_RPMBUILD") != null)
++                && queryResult.isEmpty()) {
++            logger.warn(NLS.bind("Could not find \"{0}/{1}\" in the repositories of the current location",
++                    unitReference.getId(), unitReference.getVersion()));
++            logger.warn(NLS.bind("Attempting to look for \"{0}\" instead.", unitReference.getId()));
++            matchingIUQuery = QueryUtil.createIUQuery(unitReference.getId());
++            latestMatchingIUQuery = QueryUtil.createLatestQuery(matchingIUQuery);
++            queryResult = units.query(latestMatchingIUQuery, monitor);
++        }
++
+         return queryResult;
+     }
+ 
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/TargetPlatformBundlePublisher.java b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/TargetPlatformBundlePublisher.java
 index 5d6bc1f..8281167 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/TargetPlatformBundlePublisher.java
@@ -511,8 +617,24 @@ index 4a1f157..65cbf47 100644
  
                  setTargetPlatformResolver(result, configuration);
  
+diff --git a/tycho-p2/tycho-p2-facade/pom.xml b/tycho-p2/tycho-p2-facade/pom.xml
+index dc1941f..0e84b5b 100644
+--- a/tycho-p2/tycho-p2-facade/pom.xml
++++ b/tycho-p2/tycho-p2-facade/pom.xml
+@@ -57,6 +57,11 @@
+ 			<artifactId>junit</artifactId>
+ 			<scope>test</scope>
+ 		</dependency>
++		<dependency>
++			<groupId>org.fedoraproject.p2</groupId>
++			<artifactId>org.fedoraproject.p2</artifactId>
++			<version>0.0.1-SNAPSHOT</version>
++		</dependency>
+ 	</dependencies>
+ 
+ 	<build>
 diff --git a/tycho-p2/tycho-p2-facade/src/main/java/org/eclipse/tycho/p2/resolver/P2DependencyResolver.java b/tycho-p2/tycho-p2-facade/src/main/java/org/eclipse/tycho/p2/resolver/P2DependencyResolver.java
-index 255df24..554702d 100644
+index 255df24..2e4e113 100644
 --- a/tycho-p2/tycho-p2-facade/src/main/java/org/eclipse/tycho/p2/resolver/P2DependencyResolver.java
 +++ b/tycho-p2/tycho-p2-facade/src/main/java/org/eclipse/tycho/p2/resolver/P2DependencyResolver.java
 @@ -15,6 +15,7 @@ import java.net.MalformedURLException;
@@ -523,49 +645,38 @@ index 255df24..554702d 100644
  import java.util.ArrayList;
  import java.util.Collection;
  import java.util.HashMap;
-@@ -201,6 +202,53 @@ public class P2DependencyResolver extends AbstractLogEnabled implements Dependen
+@@ -85,6 +86,7 @@ import org.eclipse.tycho.p2.resolver.facade.P2ResolverFactory;
+ import org.eclipse.tycho.p2.target.facade.PomDependencyCollector;
+ import org.eclipse.tycho.p2.target.facade.TargetPlatformConfigurationStub;
+ import org.eclipse.tycho.repository.registry.facade.ReactorRepositoryManagerFacade;
++import org.fedoraproject.p2.EclipseSystemLayout;
+ 
+ @Component(role = DependencyResolver.class, hint = P2DependencyResolver.ROLE_HINT, instantiationStrategy = "per-lookup")
+ public class P2DependencyResolver extends AbstractLogEnabled implements DependencyResolver, Initializable {
+@@ -201,6 +203,34 @@ public class P2DependencyResolver extends AbstractLogEnabled implements Dependen
              pomDependencies.setProjectLocation(project.getBasedir());
          }
  
 +        // Add Fedora Local P2 Repository when running in local mode
 +        if (System.getProperty("TYCHO_MVN_LOCAL") != null || System.getProperty("TYCHO_MVN_RPMBUILD") != null) {
 +
-+            // Find all SCL roots
-+            String jconfdirs = System.getProperty("JAVACONFDIRS");
-+            List<String> roots = new ArrayList<String>();
-+            roots.add("/");
-+            if (jconfdirs != null && !jconfdirs.isEmpty()) {
-+                String[] jconfRoots = jconfdirs.split(":");
-+                for (String jconfRoot : jconfRoots) {
-+                    roots.add(jconfRoot.replace("etc/java", ""));
-+                }
-+            }
++            Set<String> allLocations = new HashSet<String>();
++            final Set<String> roots = EclipseSystemLayout.getSCLRoots();
 +
-+            String is64 = System.getProperty("os.arch").contains("64") ? "64" : "";
-+            // Locations for all OSGi bundles
-+            final String[] locations = new String[] { "usr/lib" + is64 + "/eclipse/plugins",
-+                    "usr/share/eclipse/dropins/", "usr/lib" + is64 + "/eclipse/dropins/", "usr/share/java/",
-+                    "usr/lib/java/" };
-+
-+            List<String> uris = new ArrayList<String>();
++            Set<String> platformDirs = new HashSet<String>();
++            Set<String> internalDirs = new HashSet<String>();
++            Set<String> externalDirs = new HashSet<String>();
 +            for (String root : roots) {
-+                for (String loc : locations) {
-+                    if (Paths.get(root, loc).toFile().exists()) {
-+                        uris.add("fedora:" + root + loc);
-+                    }
-+                }
-+            }
-+            String value = System.getProperty("fedora.p2.repos");
-+            if (value != null) {
-+                String[] paths = value.split(",");
-+                for (String path : paths) {
-+                    if (Paths.get(path).toFile().exists()) {
-+                        uris.add("fedora:" + path);
-+                    }
-+                }
++                EclipseSystemLayout.initLocations(Paths.get(root), platformDirs, internalDirs, externalDirs, false);
 +            }
 +
-+            for (String uri : uris) {
++            allLocations.addAll(platformDirs);
++            allLocations.addAll(internalDirs);
++            allLocations.addAll(externalDirs);
++            allLocations.addAll(EclipseSystemLayout.getUserDefinedBundleLocations());
++
++            for (String loc : allLocations) {
++                String uri = "fedora:" + loc;
 +                try {
 +                    tpConfiguration.addP2Repository(new MavenRepositoryLocation(uri, new URI(uri)));
 +                } catch (URISyntaxException e) {
@@ -578,5 +689,5 @@ index 255df24..554702d 100644
              addEntireP2RepositoryToTargetPlatform(repository, tpConfiguration);
          }
 -- 
-1.9.3
+1.8.3.1
 
