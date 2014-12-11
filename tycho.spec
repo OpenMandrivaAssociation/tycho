@@ -16,45 +16,50 @@
 # %%global snap -SNAPSHOT
 %global snap %{nil}
 
-%define __requires_exclude osgi*
+%global fp_p2_sha 06155b
+%global fp_p2_version 0.0.1
+%global fp_p2_snap -SNAPSHOT
+
+%define __noautoreq '^osgi\\(.*$'
 
 Name:           tycho
-Version:        0.20.0
-Release:        1%{?dist}
+Version:        0.21.0
+Release:        2
 Summary:        Plugins and extensions for building Eclipse plugins and OSGI bundles with Maven
 
 Group:          System/Libraries
 # license file is missing but all files having some licensing information are ASL 2.0
-License:        ASL 2.0
+License:        ASL 2.0 and EPL
 URL:            http://eclipse.org/tycho
-Source0:        http://git.eclipse.org/c/tycho/org.eclipse.tycho.git/snapshot/tycho-0.20.0.tar.bz2
+Source0:        http://git.eclipse.org/c/tycho/org.eclipse.tycho.git/snapshot/tycho-0.21.0.tar.bz2
 
 # this is a workaround for maven-plugin-plugin changes that happened after
 # version 2.4.3 (impossible to have empty mojo created as aggregate). This
 # should be fixed upstream properly
 Source1:        EmptyMojo.java
 Source2:        %{name}-bootstrap.sh
-Source3:        copy-platform-all
 # Fedora Eclipse bundles (needed when Eclipse not present) to build Tycho
 %if %{eclipse_bootstrap}
 Source4:        eclipse-bootstrap.tar.xz
 %endif
+# Eclipse Plugin Project supporting filesystem as p2 repository
+# https://github.com/rgrunber/fedoraproject-p2
+# Generated using 'git archive --prefix=fedoraproject-p2/ -o fedoraproject-p2-%%{fp_p2_sha}.tar && xz fedoraproject-p2-%%{fp_p2_sha}.tar'
+Source5:        fedoraproject-p2-%{fp_p2_sha}.tar.xz
 
 Patch0:         %{name}-fix-build.patch
 # Upstream builds against maven-surefire 2.12.3
 Patch1:         %{name}-maven-surefire.patch
 Patch2:         %{name}-fix-surefire.patch
 Patch3:         %{name}-use-custom-resolver.patch
-# Set some temporary build version so that the bootstrapped build has
-# a different version from the nonbootstrapped. Otherwise there will
-# be cyclic dependencies.
-Patch4:         %{name}-bootstrap.patch
+Patch4:         %{name}-maven-delegation.patch
 # Additional changes needed just for bootstrap build
-Patch7:         %{name}-fix-bootstrap-build.patch
+Patch5:         %{name}-fix-bootstrap-build.patch
+# Patch director plugin to only assemble products for the current arch
+Patch6:         %{name}-running-env-only.patch
 
 BuildArch:      noarch
 
-BuildRequires:	zip
 BuildRequires:  java-devel
 BuildRequires:  maven-local
 BuildRequires:  maven-clean-plugin
@@ -66,8 +71,6 @@ BuildRequires:  maven-javadoc-plugin
 BuildRequires:  maven-release-plugin
 BuildRequires:  maven-resources-plugin
 BuildRequires:  maven-verifier
-BuildRequires:  maven-surefire-plugin
-BuildRequires:  maven-surefire-provider-junit
 BuildRequires:  objectweb-asm
 BuildRequires:  plexus-containers-component-metadata
 BuildRequires:  apache-commons-exec
@@ -101,7 +104,6 @@ Requires:       maven-local
 Requires:       maven-clean-plugin
 Requires:       maven-dependency-plugin
 Requires:       maven-verifier
-Requires:       maven-surefire-provider-junit
 Requires:       objectweb-asm
 Requires:       ecj
 %if ! %{eclipse_bootstrap}
@@ -162,12 +164,17 @@ Requires:       jpackage-utils
 This package contains the API documentation for %{name}.
 
 %prep
-%setup -q -n %{name}-0.20.0
+%setup -q -n %{name}-0.21.0
+
+# Prepare fedoraproject-p2
+tar -xf %{SOURCE5}
 
 %patch0 -p1
 %patch1 -p1
 %patch2 -p1
 %patch3 -p1
+%patch4 -p1
+%patch6 -p1
 
 find tycho-core -iname '*html' -delete
 
@@ -187,6 +194,20 @@ popd
 # These units cannot be found during a regular build
 sed -i '/^<unit id=.*$/d' tycho-bundles/tycho-bundles-target/tycho-bundles-target.target
 
+# We do not ship org.eclipse.jdt.compiler.apt
+%pom_remove_dep "org.eclipse.tycho:org.eclipse.jdt.compiler.apt"
+%pom_remove_dep "org.eclipse.tycho:org.eclipse.jdt.compiler.apt" tycho-compiler-jdt
+
+# org.ow2.asm:asm-debug-all -> org.ow2.asm:asm-all
+%pom_xpath_set "pom:dependency[pom:artifactId='asm-debug-all']/pom:artifactId" "asm-all" tycho-artifactcomparator
+
+# org.hamcrest -> org.hamcrest.core
+%pom_xpath_set "pom:requirement[pom:id='org.hamcrest']/pom:id" "org.hamcrest.core" tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests
+
+# we don't have org.apache.commons:commons-compress:jar:sources
+%pom_xpath_remove "pom:dependency[pom:classifier='sources' and pom:artifactId='commons-compress']" tycho-p2/tycho-p2-director-plugin
+
+
 # Bootstrap Build
 %if %{eclipse_bootstrap}
 tar -xf %{SOURCE4}
@@ -194,71 +215,72 @@ tar -xf %{SOURCE4}
 
 %if %{tycho_bootstrap}
 
-%patch7 -p1
+%patch5 -p1
 
 # Perform the 'minimal' (bootstrap) build of Tycho
-bash %{SOURCE2} %{eclipse_bootstrap}
+%{SOURCE2} %{eclipse_bootstrap}
 
-%patch7 -p1 -R
-
-# EXACT version in reactor cache to build against (%%{version}-SNAPSHOT)
-sed -i 's/<tychoBootstrapVersion>0.18.1<\/tychoBootstrapVersion>/<tychoBootstrapVersion>0.20.0-SNAPSHOT<\/tychoBootstrapVersion>/' pom.xml
-
-# Tests are skipped anyways, so remove some test dependencies
-%pom_xpath_remove "pom:dependency[pom:classifier='tests']" tycho-compiler-plugin
-%pom_xpath_remove "pom:dependency[pom:classifier='tests']" tycho-packaging-plugin
-
-cp %{SOURCE3} ./
-chmod 755 ./copy-platform-all
-
-%if %{eclipse_bootstrap}
-# Create the Target Platform for the final build
-mkdir -p .m2/p2/repo-sdk/plugins
-for pdir in `find $(pwd)/bootstrap/ -type d -name plugins`; do
-  for p in $pdir/* ; do
-    ln -s -t .m2/p2/repo-sdk/plugins $p
-  done
-done
-%endif
+%patch5 -p1 -R
 
 # Non-Bootstrap Build
 %else
 
+# Set some temporary build version so that the bootstrapped build has
+# a different version from the nonbootstrapped. Otherwise there will
+# be cyclic dependencies.
+
+medadataFile=%{_datadir}/maven-metadata/tycho.xml
+sysVer=`grep -C 1 "<artifactId>tycho</artifactId>" %{_mavenpomdir}/JPP.tycho-main.pom | grep "version" | sed 's/.*>\(.*\)<.*/\1/'`
+mkdir boot
+
+# Copy Tycho POMs from system repo and set their versions to %%{version}-SNAPSHOT.
+for pom in $(grep 'pom</ns1:path>' $medadataFile | sed 's|.*>\(.*\)<.*|\1|'); do
+    sed s/$sysVer/%{version}-SNAPSHOT/g <$pom >boot/$(basename $pom)
+done
+
+# Update Maven lifecycle mappings for Tycho packaging types provided by tycho-maven-plugin.
+cp %{_javadir}/tycho/tycho-maven-plugin.jar boot/tycho-maven-plugin.jar
+jar xf boot/tycho-maven-plugin.jar META-INF/plexus/components.xml
+sed -i s/$sysVer/%{version}-SNAPSHOT/ META-INF/plexus/components.xml
+jar uf boot/tycho-maven-plugin.jar META-INF/plexus/components.xml
+
+# Create XMvn metadata for the new JARs and POMs by customizing system Tycho metadata.
+sed '
+  s|>/[^<]*/\([^/]*\.pom\)</ns1:path>|>'$PWD'/boot/\1</ns1:path>|
+  s|>'$sysVer'</ns1:version>|>%{version}-SNAPSHOT</ns1:version><ns1:compatVersions><ns1:version>%{version}-SNAPSHOT</ns1:version></ns1:compatVersions>|
+  s|%{_javadir}/tycho/tycho-maven-plugin.jar|'$PWD'/boot/tycho-maven-plugin.jar|
+' $medadataFile >boot/tycho-metadata.xml
+%mvn_config resolverSettings/metadataRepositories/repository $PWD/boot/tycho-metadata.xml
+
+%endif
+
 # Tests are skipped anyways, so remove some test dependencies
 %pom_xpath_remove "pom:dependency[pom:classifier='tests']" tycho-compiler-plugin
 %pom_xpath_remove "pom:dependency[pom:classifier='tests']" tycho-packaging-plugin
 
-# installed version of Tycho
-sysVer=`grep -C 1 "<artifactId>tycho</artifactId>" %{_mavenpomdir}/JPP.tycho-main.pom | grep "version" | sed 's/.*>\(.*\)<.*/\1/'`
-
-# build version of Tycho
-buildVer=`grep -C 1 "<artifactId>tycho</artifactId>" pom.xml | grep "version" | sed 's/.*>\(.*\)<.*/\1/'`
-
-echo "System version is ${sysVer} and attempting to build ${buildVer}."
-
-# If version installed on system is the same as the version being built
-# an intermediary build must be done to prevent a cycle at build time.
-if [ "${sysVer}" == "${buildVer}" ]; then
-echo "Performing intermediary build"
-%patch4 -p1
-
-xmvn -o -Dmaven.test.skip=true -Dmaven.repo.local=$(pwd)/.m2 install
-
-%patch4 -p1 -R
-
-# EXACT version in reactor cache to build against (%%{version}-SNAPSHOT)
-sed -i 's/<tychoBootstrapVersion>0.18.1<\/tychoBootstrapVersion>/<tychoBootstrapVersion>0.20.0-SNAPSHOT<\/tychoBootstrapVersion>/' pom.xml
-fi
-
-%endif
-
 %build
-xmvn -o -Dmaven.test.skip=true -Dmaven.repo.local=$(pwd)/.m2 clean install org.apache.maven.plugins:maven-javadoc-plugin:aggregate
+xmvn -o -Dtycho-version=%{version}-SNAPSHOT -Dmaven.test.skip=true \
+-Dmaven.repo.local=$(pwd)/.m2 -Dfedora.p2.repos=$(pwd)/bootstrap \
+-f fedoraproject-p2/org.fedoraproject.p2/pom.xml \
+clean install org.apache.maven.plugins:maven-javadoc-plugin:aggregate
+
+xmvn -o -DtychoBootstrapVersion=%{version}-SNAPSHOT -Dmaven.test.skip=true \
+-Dmaven.repo.local=$(pwd)/.m2 -Dfedora.p2.repos=$(pwd)/bootstrap \
+clean install org.apache.maven.plugins:maven-javadoc-plugin:aggregate
 
 %install
 
 mkdir -p $RPM_BUILD_ROOT%{_javadir}/%{name}
 install -d -m 755 $RPM_BUILD_ROOT%{_mavenpomdir}
+
+# org.fedoraproject.p2
+mod=fedoraproject-p2/org.fedoraproject.p2
+aid=`basename $mod`
+pushd $mod
+install -pm 644 pom.xml $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-$aid.pom
+install -m 644 target/$aid-%{fp_p2_version}%{fp_p2_snap}.jar $RPM_BUILD_ROOT%{_javadir}/%{name}/$aid.jar
+popd
+%add_maven_depmap JPP.%{name}-$aid.pom %{name}/$aid.jar
 
 # pom and jar installation
 for mod in target-platform-configuration tycho-compiler-{jdt,plugin} \
@@ -285,11 +307,10 @@ for pommod in tycho-p2 tycho-bundles tycho-surefire \
 done
 
 # p2 runtime
-pushd .m2/org/eclipse/tycho/tycho-bundles-external/%{version}%{snap}/
-install -pm 644 tycho-bundles-external-%{version}*.pom $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-tycho-bundles-external.pom
-install -m 644 tycho-bundles-external-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external.zip
+dir=.m2/org/eclipse/tycho/tycho-bundles-external/%{version}%{snap}
+install -pm 644 $dir/tycho-bundles-external-%{version}*.pom $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-tycho-bundles-external.pom
+install -m 644 $dir/tycho-bundles-external-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external.zip
 %add_maven_depmap JPP.%{name}-tycho-bundles-external.pom %{name}/tycho-bundles-external.zip -a "org.eclipse.tycho:tycho-bundles-external"
-popd
 
 # main
 install -pm 644 pom.xml  $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-main.pom
@@ -306,39 +327,117 @@ popd
 install -dm 755 $RPM_BUILD_ROOT%{_javadocdir}/%{name}
 cp -pr target/site/api*/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}
 
-install -pm 755 %{SOURCE3} $RPM_BUILD_ROOT%{_javadir}/%{name}/copy-platform-all
-
 %if %{eclipse_bootstrap}
 # org.eclipse.osgi
 osgiJarPath=`find ".m2/org" -name "org.eclipse.osgi_*.jar"`
-osgiJar=`basename $osgiJarPath`
-osgiVer=`echo $osgiJar | sed 's/^.*_//' | sed 's/.jar//'`
 
-# http://git.eclipse.org/c/linuxtools/org.eclipse.linuxtools.eclipse-build.git/tree/externalpoms/org.eclipse.osgi-3.6.0.v20100517.pom
+# http://git.eclipse.org/c/linuxtools/org.eclipse.linuxtools.eclipse-build.git/tree/externalpoms/org.eclipse.osgi.pom
 echo '<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd" xsi:noNamespaceSchemaLocation="http://maven.apache.org/POM/4.0.0">
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.eclipse.osgi</groupId>
   <artifactId>org.eclipse.osgi</artifactId>
-  <version>3.6.0.v20100517</version>
-  <description>OSGi System Bundle %%systemBundle</description>
-  <!-- See https://issues.sonatype.org/browse/OSSRH-739 -->
+  <version>3.10.0.v20140328-1811</version>
 </project>' > JPP.tycho-osgi.pom
 
 install -pm 644 JPP.tycho-osgi.pom $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.tycho-osgi.pom
 install -m 644 $osgiJarPath $RPM_BUILD_ROOT%{_javadir}/%{name}/osgi.jar
 %add_maven_depmap JPP.%{name}-osgi.pom %{name}/osgi.jar -a "org.eclipse.tycho:org.eclipse.osgi"
+
+# org.eclipse.osgi.compatibility.state
+osgiStateJarPath=`find ".m2/org" -name "org.eclipse.osgi.compatibility.state_*.jar"`
+
+# http://git.eclipse.org/c/linuxtools/org.eclipse.linuxtools.eclipse-build.git/tree/externalpoms/org.eclipse.osgi.compatibility.state.pom
+echo '<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd" xsi:noNamespaceSchemaLocation="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.eclipse.osgi</groupId>
+  <artifactId>org.eclipse.osgi.compatibility.state</artifactId>
+  <version>1.0.0.v20140328-1811</version>
+</project>' > JPP.tycho-osgi.compatibility.state.pom
+
+install -pm 644 JPP.tycho-osgi.compatibility.state.pom $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.tycho-osgi.compatibility.state.pom
+install -m 644 $osgiStateJarPath $RPM_BUILD_ROOT%{_javadir}/%{name}/osgi.compatibility.state.jar
+%add_maven_depmap JPP.%{name}-osgi.compatibility.state.pom %{name}/osgi.compatibility.state.jar -a "org.eclipse.tycho:org.eclipse.osgi.compatibility.state"
 %endif
 
 %files -f .mfiles
-%{_mavenpomdir}/*
-%{_javadir}/%{name}/
+%dir %{_javadir}/%{name}
 %doc README.md
 
 %files javadoc
 %{_javadocdir}/%{name}
 
 %changelog
+* Thu Aug 21 2014 Roland Grunberg <rgrunber@redhat.com> - 0.21.0-2
+- Integrate fedoraproject-p2 into Tycho.
+
+* Thu Jul 24 2014 Roland Grunberg <rgrunber@redhat.com> - 0.21.0-1
+- Update to 0.21.0 Release.
+
+* Fri Jul 11 2014 Mat Booth <mat.booth@redhat.com> - 0.20.0-18
+- Allow director plugin to only assemble products for the current arch
+- Drop some unneeded BR/Rs on surefire (maven-local pulls these in)
+
+* Wed Jul 02 2014 Roland Grunberg <rgrunber@redhat.com> - 0.20.0-17
+- Return non-existant expected local path when resolution fails.
+- Resolves: rhbz#1114120
+
+* Fri Jun 27 2014 Roland Grunberg <rgrunber@redhat.com> - 0.20.0-16
+- Tycho should always delegate artifact resolution to Maven.
+
+* Wed Jun 25 2014 Alexander Kurtakov <akurtako@redhat.com> 0.20.0-15
+- Non-bootstrap build now that aarch64 is done.
+
+* Tue Jun 24 2014 Roland Grunberg <rgrunber@redhat.com> - 0.20.0-14.1
+- Add swt aarch64 fragment to bootstrap repo.
+
+* Tue Jun 24 2014 Alexander Kurtakov <akurtako@redhat.com> 0.20.0-14
+- Full bootstrap build for secondary archs.
+
+* Thu Jun 12 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.20.0-13
+- Restore runtime dependencies on XMvn
+
+* Sun Jun 08 2014 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0.20.0-12
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_21_Mass_Rebuild
+
+* Tue Jun  3 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.20.0-11
+- Skip intermediary build in non-bootstrap mode
+- Resolves: rhbz#1103839
+- Remove unneeded XMvn bits
+
+* Fri May 30 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.20.0-10
+- Fix runtime dependencies on XMvn in POMs
+- Use custom Plexus config to lookup XMvn classes
+- Lookup Aether WorkspaceReader using role hint "ide"
+
+* Thu May 29 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.20.0-9
+- Don'n install duplicate Maven metadata for sisu-equinox
+
+* Wed May 21 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.20.0-8
+- Use .mfiles generated during build
+
+* Fri May 16 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.20.0-7
+- Add support for XMvn 2.0
+
+* Tue May 13 2014 Alexander Kurtakov <akurtako@redhat.com> 0.20.0-6
+- Make tycho copy licence feature to the system repo.
+
+* Wed Apr 30 2014 Alexander Kurtakov <akurtako@redhat.com> 0.20.0-5
+- Non-bootstrap build.
+
+* Tue Apr 29 2014 Alexander Kurtakov <akurtako@redhat.com> 0.20.0-4
+- Organize patches.
+
+* Tue Apr 22 2014 Roland Grunberg <rgrunber@redhat.com> - 0.20.0-3
+- Add support for compact profiles (Bug 1090003).
+
+* Wed Apr 02 2014 Roland Grunberg <rgrunber@redhat.com> - 0.20.0-2
+- Non-bootstrap build.
+
+* Thu Mar 27 2014 Roland Grunberg <rgrunber@redhat.com> - 0.20.0-1.1
+- Update to Eclipse Luna (4.4).
+
 * Mon Mar 24 2014 Roland Grunberg <rgrunber@redhat.com> - 0.20.0-1
 - Update to 0.20.0 Release.
 

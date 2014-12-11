@@ -1,4 +1,4 @@
-From 9e232ccfb26673afb80357d8dffadfb1e28f14f2 Mon Sep 17 00:00:00 2001
+From f515e677ed605c6fe02842334de19304b8497144 Mon Sep 17 00:00:00 2001
 From: Roland Grunberg <rgrunber@redhat.com>
 Date: Tue, 12 Jun 2012 09:56:38 -0400
 Subject: [PATCH] Fix the Tycho build to work on Fedora.
@@ -16,59 +16,22 @@ so we must provide a way to disable it. Disable by default.
 
 Update to using Jetty 9 API.
 
+Add support for compact profiles (http://openjdk.java.net/jeps/161).
+
 Change-Id: Ic8c0514c1fa10ee53580d2654ac6a363ccd66814
 ---
- pom.xml                                                       |  5 -----
- tycho-artifactcomparator/pom.xml                              |  4 ++--
- .../META-INF/MANIFEST.MF                                      |  2 +-
- .../org.eclipse.tycho.p2.maven.repository.tests/pom.xml       |  2 +-
- .../eclipse/tycho/p2/target/ee/CustomEEResolutionHandler.java |  2 +-
- .../src/main/java/org/eclipse/tycho/test/util/HttpServer.java |  8 ++++++--
- .../tycho-bundles-external/tycho-bundles-external.product     |  1 -
- .../tycho-standalone-p2-director/p2 Director.product          |  1 -
- tycho-compiler-jdt/pom.xml                                    |  4 ----
- .../tycho/core/maven/TychoMavenLifecycleParticipant.java      |  4 +++-
- .../org/eclipse/tycho/test/AbstractTychoIntegrationTest.java  | 11 +++++------
- 11 files changed, 19 insertions(+), 25 deletions(-)
+ .../META-INF/MANIFEST.MF                                    |  2 +-
+ .../tycho/p2/target/ee/CustomEEResolutionHandler.java       |  2 +-
+ .../main/java/org/eclipse/tycho/test/util/HttpServer.java   |  8 ++++++--
+ .../tycho-bundles-external/tycho-bundles-external.product   |  1 -
+ .../tycho-standalone-p2-director/p2 Director.product        |  1 -
+ .../src/main/java/org/eclipse/tycho/core/ee/EEVersion.java  | 13 ++++++++++++-
+ .../tycho/core/maven/TychoMavenLifecycleParticipant.java    |  4 +++-
+ .../eclipse/tycho/test/AbstractTychoIntegrationTest.java    | 11 +++++------
+ 8 files changed, 28 insertions(+), 14 deletions(-)
 
-diff --git a/pom.xml b/pom.xml
-index ef34822..685cce7 100644
---- a/pom.xml
-+++ b/pom.xml
-@@ -243,11 +243,6 @@ $CMD -DpomFile=org.eclipse.jdt.compiler.apt.pom \
- 				<version>${jdtVersion}</version>
- 			</dependency>
- 			<dependency>
--				<groupId>org.eclipse.tycho</groupId>
--				<artifactId>org.eclipse.jdt.compiler.apt</artifactId>
--				<version>${jdtAptVersion}</version>
--			</dependency>			                        
--			<dependency>
- 				<groupId>org.apache.maven.surefire</groupId>
- 				<artifactId>surefire-booter</artifactId>
- 				<version>2.10</version>
-diff --git a/tycho-artifactcomparator/pom.xml b/tycho-artifactcomparator/pom.xml
-index a7836dc..50d90d9 100644
---- a/tycho-artifactcomparator/pom.xml
-+++ b/tycho-artifactcomparator/pom.xml
-@@ -24,7 +24,7 @@
-     <dependency>
-       <!-- CQ https://dev.eclipse.org/ipzilla/show_bug.cgi?id=6591 -->
-       <groupId>org.ow2.asm</groupId>
--      <artifactId>asm-debug-all</artifactId>
-+      <artifactId>asm-all</artifactId>
-       <version>4.0</version>
-     </dependency>
-     <dependency>
-@@ -54,4 +54,4 @@
-       </plugin>
-     </plugins>
-   </build>
--</project>
-\ No newline at end of file
-+</project>
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/META-INF/MANIFEST.MF b/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/META-INF/MANIFEST.MF
-index f934b66..5145072 100644
+index f59f155..6d3813b 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/META-INF/MANIFEST.MF
 +++ b/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/META-INF/MANIFEST.MF
 @@ -9,7 +9,7 @@ Fragment-Host: org.eclipse.tycho.p2.maven.repository
@@ -80,21 +43,8 @@ index f934b66..5145072 100644
  Import-Package: org.eclipse.tycho.locking.facade,
   org.eclipse.tycho.repository.local.testutil,
   org.eclipse.tycho.repository.streaming.testutil,
-diff --git a/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/pom.xml b/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/pom.xml
-index fefde17..73c00f2 100644
---- a/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/pom.xml
-+++ b/tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests/pom.xml
-@@ -37,7 +37,7 @@
- 							<!-- 403196 give p2 resolver a hint so that package imports of org.mockito can be resolved -->
- 							<requirement>
- 								<type>eclipse-plugin</type>
--								<id>org.hamcrest</id>
-+								<id>org.hamcrest.core</id>
- 								<versionRange>0.0.0</versionRange>
- 							</requirement>
- 						</extraRequirements>
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/ee/CustomEEResolutionHandler.java b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/ee/CustomEEResolutionHandler.java
-index 87c9e11..927cea5 100644
+index 6773a40..c66c991 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/ee/CustomEEResolutionHandler.java
 +++ b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/ee/CustomEEResolutionHandler.java
 @@ -59,7 +59,7 @@ class CustomEEResolutionHandler extends ExecutionEnvironmentResolutionHandler {
@@ -135,10 +85,10 @@ index 57b4e10..47423e5 100644
          jetty.addConnector(connector);
  
 diff --git a/tycho-bundles/tycho-bundles-external/tycho-bundles-external.product b/tycho-bundles/tycho-bundles-external/tycho-bundles-external.product
-index c10de9e..aaba0d3 100644
+index 9f6cb78..41705c5 100644
 --- a/tycho-bundles/tycho-bundles-external/tycho-bundles-external.product
 +++ b/tycho-bundles/tycho-bundles-external/tycho-bundles-external.product
-@@ -42,7 +42,6 @@
+@@ -43,7 +43,6 @@
        <plugin id="org.eclipse.ecf.ssl" fragment="true"/>
        <plugin id="org.eclipse.equinox.app"/>
        <plugin id="org.eclipse.equinox.common"/>
@@ -147,7 +97,7 @@ index c10de9e..aaba0d3 100644
        <plugin id="org.eclipse.equinox.frameworkadmin"/>
        <plugin id="org.eclipse.equinox.frameworkadmin.equinox"/>
 diff --git a/tycho-bundles/tycho-standalone-p2-director/p2 Director.product b/tycho-bundles/tycho-standalone-p2-director/p2 Director.product
-index 62b354d..11f65fb 100644
+index 6739b3a..af9237b 100644
 --- a/tycho-bundles/tycho-standalone-p2-director/p2 Director.product	
 +++ b/tycho-bundles/tycho-standalone-p2-director/p2 Director.product	
 @@ -42,7 +42,6 @@
@@ -158,23 +108,39 @@ index 62b354d..11f65fb 100644
        <plugin id="org.eclipse.equinox.ds"/>
        <plugin id="org.eclipse.equinox.frameworkadmin"/>
        <plugin id="org.eclipse.equinox.frameworkadmin.equinox"/>
-diff --git a/tycho-compiler-jdt/pom.xml b/tycho-compiler-jdt/pom.xml
-index dca4f8f..815ca50 100644
---- a/tycho-compiler-jdt/pom.xml
-+++ b/tycho-compiler-jdt/pom.xml
-@@ -38,10 +38,6 @@
- 			<artifactId>org.eclipse.jdt.core</artifactId>
- 		</dependency>
- 		<dependency>
--			<groupId>org.eclipse.tycho</groupId>
--			<artifactId>org.eclipse.jdt.compiler.apt</artifactId>
--		</dependency>
--		<dependency>
- 			<groupId>org.codehaus.plexus</groupId>
- 			<artifactId>plexus-compiler-api</artifactId>
- 		</dependency>
+diff --git a/tycho-core/src/main/java/org/eclipse/tycho/core/ee/EEVersion.java b/tycho-core/src/main/java/org/eclipse/tycho/core/ee/EEVersion.java
+index 6455a7c..4d09e34 100644
+--- a/tycho-core/src/main/java/org/eclipse/tycho/core/ee/EEVersion.java
++++ b/tycho-core/src/main/java/org/eclipse/tycho/core/ee/EEVersion.java
+@@ -18,7 +18,8 @@ public class EEVersion implements Comparable<EEVersion> {
+     public enum EEType {
+ 
+         // order is significant for comparison
+-        OSGI_MINIMUM("OSGi/Minimum"), CDC_FOUNDATION("CDC/Foundation"), JRE("JRE"), JAVA_SE("JavaSE");
++        OSGI_MINIMUM("OSGi/Minimum"), CDC_FOUNDATION("CDC/Foundation"), JRE("JRE"), JAVA_SE("JavaSE"), JAVA_SE_COMPACT1(
++                "JavaSE/compact1"), JAVA_SE_COMPACT2("JavaSE/compact2"), JAVA_SE_COMPACT3("JavaSE/compact3");
+ 
+         private final String profileName;
+ 
+@@ -51,6 +52,16 @@ public class EEVersion implements Comparable<EEVersion> {
+      * @see java.lang.Comparable#compareTo(java.lang.Object)
+      */
+     public int compareTo(EEVersion other) {
++        // JavaSE/compact{1..3} > JavaSE-N except when N = 1.8
++        final Version JAVA8 = Version.parseVersion("1.8");
++        if (type.equals(EEType.JAVA_SE) && version.equals(JAVA8)
++                && other.type.profileName.contains("JavaSE/compact")) {
++            return 1;
++
++        } else if (other.type.equals(EEType.JAVA_SE) && other.version.equals(JAVA8)
++                && type.profileName.contains("JavaSE/compact")) {
++            return -1;
++        }
+         int result = type.compareTo(other.type);
+         if (result != 0) {
+             return result;
 diff --git a/tycho-core/src/main/java/org/eclipse/tycho/core/maven/TychoMavenLifecycleParticipant.java b/tycho-core/src/main/java/org/eclipse/tycho/core/maven/TychoMavenLifecycleParticipant.java
-index 08daf3c..d003619 100644
+index 4cc937c..59335b9 100644
 --- a/tycho-core/src/main/java/org/eclipse/tycho/core/maven/TychoMavenLifecycleParticipant.java
 +++ b/tycho-core/src/main/java/org/eclipse/tycho/core/maven/TychoMavenLifecycleParticipant.java
 @@ -77,7 +77,9 @@ public class TychoMavenLifecycleParticipant extends AbstractMavenLifecyclePartic
@@ -211,5 +177,5 @@ index a8173df..cf2cf57 100644
  
          return verifier;
 -- 
-1.8.5.3
+1.9.3
 

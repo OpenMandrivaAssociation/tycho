@@ -1,4 +1,4 @@
-From ef54fab21914153917e55077baae71b10e9d1f53 Mon Sep 17 00:00:00 2001
+From 2100439cf0625cb1e4b480de2d90d7105443a6ef Mon Sep 17 00:00:00 2001
 From: Jan Sievers <jan.sievers@sap.com>
 Date: Tue, 4 Sep 2012 16:02:52 +0200
 Subject: [PATCH] POC 386481 update maven surefire to latest version 2.17
@@ -40,7 +40,7 @@ Change-Id: Ibcb439a24add880c4cdafe67b42e29ca3cb14ff1
  16 files changed, 118 insertions(+), 38 deletions(-)
 
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit/META-INF/MANIFEST.MF b/tycho-surefire/org.eclipse.tycho.surefire.junit/META-INF/MANIFEST.MF
-index bc764f3..6c0f0d4 100644
+index a2522b5..0063b71 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit/META-INF/MANIFEST.MF
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit/META-INF/MANIFEST.MF
 @@ -7,5 +7,5 @@ Fragment-Host: org.eclipse.tycho.surefire.osgibooter;bundle-version="0.14.0"
@@ -62,10 +62,10 @@ index 499ce76..fe88b19 100644
 +               jars/,\
                 plugin.properties
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit4/META-INF/MANIFEST.MF b/tycho-surefire/org.eclipse.tycho.surefire.junit4/META-INF/MANIFEST.MF
-index 49246f7..7361cae 100644
+index 8597932..861e0d7 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit4/META-INF/MANIFEST.MF
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit4/META-INF/MANIFEST.MF
-@@ -6,7 +6,7 @@ Bundle-Version: 0.20.0
+@@ -6,7 +6,7 @@ Bundle-Version: 0.21.0
  Fragment-Host: org.eclipse.tycho.surefire.osgibooter;bundle-version="0.14.0"
  Bundle-RequiredExecutionEnvironment: J2SE-1.5,
   JavaSE-1.6
@@ -86,10 +86,10 @@ index b787149..fe88b19 100644
 +               jars/,\
                 plugin.properties
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit47/META-INF/MANIFEST.MF b/tycho-surefire/org.eclipse.tycho.surefire.junit47/META-INF/MANIFEST.MF
-index 5e0aea7..2d3c2f6 100644
+index a26db94..6e0cebb 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit47/META-INF/MANIFEST.MF
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit47/META-INF/MANIFEST.MF
-@@ -6,11 +6,14 @@ Bundle-Version: 0.20.0
+@@ -6,11 +6,14 @@ Bundle-Version: 0.21.0
  Fragment-Host: org.eclipse.tycho.surefire.osgibooter;bundle-version="0.16.0"
  Bundle-RequiredExecutionEnvironment: J2SE-1.5
  Bundle-ClassPath: .,
@@ -120,7 +120,7 @@ index 61905c2..41bdc39 100644
                 about.html,\
                 about_files/
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit47/pom.xml b/tycho-surefire/org.eclipse.tycho.surefire.junit47/pom.xml
-index 0b8c582..0147a32 100644
+index 9e0bfb6..e217cdf 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit47/pom.xml
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit47/pom.xml
 @@ -44,6 +44,16 @@
@@ -163,7 +163,7 @@ index eaa8dc4..3b8ca14 100644
      }
  
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/META-INF/MANIFEST.MF b/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/META-INF/MANIFEST.MF
-index b45a0a9..1c772c0 100644
+index fb1165d..6d4b688 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/META-INF/MANIFEST.MF
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/META-INF/MANIFEST.MF
 @@ -4,8 +4,10 @@ Require-Bundle: org.eclipse.osgi;bundle-version="3.2.2",
@@ -176,11 +176,11 @@ index b45a0a9..1c772c0 100644
 + jars/surefire-api-2.15.jar,
 + jars/maven-surefire-common-2.15.jar,
 + jars/plexus-utils-3.0.jar
- Bundle-Version: 0.20.0
+ Bundle-Version: 0.21.0
  Bundle-Name: Tycho Surefire OSGi Booter Eclipse Application (Incubation)
  Bundle-ManifestVersion: 2
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/pom.xml b/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/pom.xml
-index 92a30b9..6702533 100644
+index 36b75b6..27aa6f6 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/pom.xml
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/pom.xml
 @@ -52,6 +52,16 @@
@@ -201,10 +201,10 @@ index 92a30b9..6702533 100644
  						</configuration>
  					</execution>
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/src/main/java/org/eclipse/tycho/surefire/osgibooter/OsgiSurefireBooter.java b/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/src/main/java/org/eclipse/tycho/surefire/osgibooter/OsgiSurefireBooter.java
-index 56b2264..1ac5599 100644
+index c1de8ec..b81b853 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/src/main/java/org/eclipse/tycho/surefire/osgibooter/OsgiSurefireBooter.java
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.osgibooter/src/main/java/org/eclipse/tycho/surefire/osgibooter/OsgiSurefireBooter.java
-@@ -18,20 +18,25 @@ import java.io.IOException;
+@@ -19,20 +19,25 @@ import java.io.IOException;
  import java.net.URL;
  import java.util.ArrayList;
  import java.util.Arrays;
@@ -232,7 +232,7 @@ index 56b2264..1ac5599 100644
  import org.apache.maven.surefire.testset.TestRequest;
  import org.apache.maven.surefire.util.RunOrder;
  import org.eclipse.core.runtime.CoreException;
-@@ -56,7 +61,7 @@ public class OsgiSurefireBooter {
+@@ -57,7 +62,7 @@ public class OsgiSurefireBooter {
          List<String> includes = getIncludesExcludes(testProps.getProperty("includes"));
          List<String> excludes = getIncludesExcludes(testProps.getProperty("excludes"));
  
@@ -241,7 +241,7 @@ index 56b2264..1ac5599 100644
          boolean inForkedVM = true;
          boolean trimStacktrace = true;
          boolean useSystemClassloader = false;
-@@ -65,26 +70,31 @@ public class OsgiSurefireBooter {
+@@ -66,26 +71,31 @@ public class OsgiSurefireBooter {
          boolean printSummary = true;
          boolean disableXmlReport = false;
          ClassLoader testClassLoader = getBundleClassLoader(plugin);
@@ -333,7 +333,7 @@ index c94d3ea..fc606b0 100644
  
  }
 diff --git a/tycho-surefire/pom.xml b/tycho-surefire/pom.xml
-index f97e666..f6bf5aa 100644
+index 476ffd9..6e16c20 100644
 --- a/tycho-surefire/pom.xml
 +++ b/tycho-surefire/pom.xml
 @@ -26,7 +26,7 @@
@@ -346,10 +346,10 @@ index f97e666..f6bf5aa 100644
  
  	<modules>
 diff --git a/tycho-surefire/tycho-surefire-plugin/pom.xml b/tycho-surefire/tycho-surefire-plugin/pom.xml
-index a772203..05dc1f3 100644
+index 0106500..c7a601a 100644
 --- a/tycho-surefire/tycho-surefire-plugin/pom.xml
 +++ b/tycho-surefire/tycho-surefire-plugin/pom.xml
-@@ -101,5 +101,10 @@
+@@ -106,5 +106,10 @@
  			<artifactId>tycho-p2-facade</artifactId>
  			<version>${project.version}</version>
  		</dependency>
@@ -361,21 +361,21 @@ index a772203..05dc1f3 100644
  	</dependencies>
  </project>
 diff --git a/tycho-surefire/tycho-surefire-plugin/src/main/java/org/eclipse/tycho/surefire/TestMojo.java b/tycho-surefire/tycho-surefire-plugin/src/main/java/org/eclipse/tycho/surefire/TestMojo.java
-index 4554384..be22b0a 100644
+index 2305a2a..bd0cf5c 100644
 --- a/tycho-surefire/tycho-surefire-plugin/src/main/java/org/eclipse/tycho/surefire/TestMojo.java
 +++ b/tycho-surefire/tycho-surefire-plugin/src/main/java/org/eclipse/tycho/surefire/TestMojo.java
-@@ -20,6 +20,7 @@ import java.net.MalformedURLException;
+@@ -19,6 +19,7 @@ import java.io.IOException;
+ import java.net.MalformedURLException;
  import java.util.ArrayList;
  import java.util.Arrays;
- import java.util.HashMap;
 +import java.util.Collections;
+ import java.util.LinkedHashMap;
  import java.util.List;
  import java.util.Map;
- import java.util.Properties;
-@@ -35,9 +36,10 @@ import org.apache.maven.model.Dependency;
- import org.apache.maven.plugin.AbstractMojo;
- import org.apache.maven.plugin.MojoExecutionException;
- import org.apache.maven.plugin.MojoFailureException;
+@@ -40,9 +41,10 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
+ import org.apache.maven.plugins.annotations.Mojo;
+ import org.apache.maven.plugins.annotations.Parameter;
+ import org.apache.maven.plugins.annotations.ResolutionScope;
 +import org.apache.maven.plugin.surefire.util.DirectoryScanner;
  import org.apache.maven.project.MavenProject;
  import org.apache.maven.repository.RepositorySystem;
@@ -384,7 +384,7 @@ index 4554384..be22b0a 100644
  import org.apache.maven.toolchain.Toolchain;
  import org.apache.maven.toolchain.ToolchainManager;
  import org.codehaus.plexus.util.FileUtils;
-@@ -904,6 +906,27 @@ public class TestMojo extends AbstractMojo {
+@@ -858,6 +860,27 @@ public class TestMojo extends AbstractMojo {
              result.put("perCoreThreadCount", String.valueOf(perCoreThreadCount));
              result.put("useUnlimitedThreads", String.valueOf(useUnlimitedThreads));
          }
@@ -412,7 +412,7 @@ index 4554384..be22b0a 100644
          return result;
      }
  
-@@ -948,7 +971,7 @@ public class TestMojo extends AbstractMojo {
+@@ -902,7 +925,7 @@ public class TestMojo extends AbstractMojo {
          case 0:
              getLog().info("All tests passed!");
              break;
@@ -421,7 +421,7 @@ index 4554384..be22b0a 100644
              String message = "No tests found.";
              if (failIfNoTests) {
                  throw new MojoFailureException(message);
-@@ -956,7 +979,7 @@ public class TestMojo extends AbstractMojo {
+@@ -910,7 +933,7 @@ public class TestMojo extends AbstractMojo {
                  getLog().warn(message);
              }
              break;
@@ -444,5 +444,5 @@ index edcc46a..5d62d3d 100644
  
      public Version getVersion() {
 -- 
-1.8.5.3
+1.9.3
 

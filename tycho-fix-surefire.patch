@@ -1,4 +1,4 @@
-From bb8f9d90bbb4e086e8f1617bebc4e1d0a9585597 Mon Sep 17 00:00:00 2001
+From 30e2826ca933fd28d1f769f43fd818ce536b5363 Mon Sep 17 00:00:00 2001
 From: Roland Grunberg <rgrunber@redhat.com>
 Date: Fri, 21 Sep 2012 10:58:09 -0400
 Subject: [PATCH] Resolve all necessary dependencies for Tycho Surefire.
@@ -24,10 +24,10 @@ Change-Id: I9ef0239eed887fa47c380efcdce968934c788c9f
  6 files changed, 34 insertions(+), 4 deletions(-)
 
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit/META-INF/MANIFEST.MF b/tycho-surefire/org.eclipse.tycho.surefire.junit/META-INF/MANIFEST.MF
-index 6c0f0d4..e732b3f 100644
+index 0063b71..9087302 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit/META-INF/MANIFEST.MF
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit/META-INF/MANIFEST.MF
-@@ -6,6 +6,7 @@ Bundle-Version: 0.20.0
+@@ -6,6 +6,7 @@ Bundle-Version: 0.21.0
  Fragment-Host: org.eclipse.tycho.surefire.osgibooter;bundle-version="0.14.0"
  Bundle-RequiredExecutionEnvironment: J2SE-1.5,
   JavaSE-1.6
@@ -38,7 +38,7 @@ index 6c0f0d4..e732b3f 100644
 + jars/common-junit3-2.15.jar
  Bundle-Vendor: %providerName
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit/pom.xml b/tycho-surefire/org.eclipse.tycho.surefire.junit/pom.xml
-index 9ae03b5..fefdda7 100644
+index 341e317..5cd46d6 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit/pom.xml
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit/pom.xml
 @@ -44,6 +44,11 @@
@@ -54,10 +54,10 @@ index 9ae03b5..fefdda7 100644
  						</configuration>
  					</execution>
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit4/META-INF/MANIFEST.MF b/tycho-surefire/org.eclipse.tycho.surefire.junit4/META-INF/MANIFEST.MF
-index 7361cae..d868a8f 100644
+index 861e0d7..a37db5f 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit4/META-INF/MANIFEST.MF
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit4/META-INF/MANIFEST.MF
-@@ -6,7 +6,9 @@ Bundle-Version: 0.20.0
+@@ -6,7 +6,9 @@ Bundle-Version: 0.21.0
  Fragment-Host: org.eclipse.tycho.surefire.osgibooter;bundle-version="0.14.0"
  Bundle-RequiredExecutionEnvironment: J2SE-1.5,
   JavaSE-1.6
@@ -69,7 +69,7 @@ index 7361cae..d868a8f 100644
   org.junit;version="4.0.0",
   org.junit.runner;version="4.0.0",
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit4/pom.xml b/tycho-surefire/org.eclipse.tycho.surefire.junit4/pom.xml
-index 822f8e3..c6bc5fc 100644
+index 0cdea03..8156c49 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit4/pom.xml
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit4/pom.xml
 @@ -44,6 +44,16 @@
@@ -90,7 +90,7 @@ index 822f8e3..c6bc5fc 100644
  						</configuration>
  					</execution>
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit47/META-INF/MANIFEST.MF b/tycho-surefire/org.eclipse.tycho.surefire.junit47/META-INF/MANIFEST.MF
-index 2d3c2f6..79fa5e6 100644
+index 6e0cebb..69aecdd 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit47/META-INF/MANIFEST.MF
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit47/META-INF/MANIFEST.MF
 @@ -8,7 +8,9 @@ Bundle-RequiredExecutionEnvironment: J2SE-1.5
@@ -105,7 +105,7 @@ index 2d3c2f6..79fa5e6 100644
   org.junit;version="[4.7,5)",
   org.junit.runner;version="[4.7,5)",
 diff --git a/tycho-surefire/org.eclipse.tycho.surefire.junit47/pom.xml b/tycho-surefire/org.eclipse.tycho.surefire.junit47/pom.xml
-index 0147a32..9286d4e 100644
+index e217cdf..3e45493 100644
 --- a/tycho-surefire/org.eclipse.tycho.surefire.junit47/pom.xml
 +++ b/tycho-surefire/org.eclipse.tycho.surefire.junit47/pom.xml
 @@ -54,6 +54,16 @@
@@ -126,5 +126,5 @@ index 0147a32..9286d4e 100644
  						</configuration>
  					</execution>
 -- 
-1.8.5.3
+1.9.3
 

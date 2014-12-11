@@ -1,0 +1,77 @@
+From f2455f1142b7fc8570139d5fec8b5f22ebe5542c Mon Sep 17 00:00:00 2001
+From: Mat Booth <mat.booth@redhat.com>
+Date: Thu, 10 Jul 2014 15:26:50 +0100
+Subject: [PATCH] Add "running env only" option to the p2-director-plugin.
+
+This options allows you to restrict assembling and archiving products
+to only the current running target environment.
+---
+ .../tycho/plugins/p2/director/AbstractProductMojo.java  | 17 +++++++++++++++++
+ .../eclipse/tycho/plugins/p2/director/DirectorMojo.java |  3 +++
+ .../tycho/plugins/p2/director/ProductArchiverMojo.java  |  3 +++
+ 3 files changed, 23 insertions(+)
+
+diff --git a/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/AbstractProductMojo.java b/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/AbstractProductMojo.java
+index c34cb72..d605091 100644
+--- a/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/AbstractProductMojo.java
++++ b/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/AbstractProductMojo.java
+@@ -106,6 +106,16 @@ abstract class AbstractProductMojo extends AbstractMojo {
+     private List<Product> products;
+ 
+     /**
++     * <p>
++     * Assemble and archive product installations for the running environment only. Setting this to
++     * true will omit all target environments that do not exactly match the running environment.
++     * </p>
++     *
++     * @parameter expression="${director.running.env.only}"
++     */
++    private boolean runningEnvOnly;
++
++    /**
+      * Kill the forked process after a certain number of seconds. If set to 0, wait forever for the
+      * process, never timing out.
+      */
+@@ -148,4 +158,11 @@ abstract class AbstractProductMojo extends AbstractMojo {
+     static String getOsWsArch(TargetEnvironment env, char separator) {
+         return env.getOs() + separator + env.getWs() + separator + env.getArch();
+     }
++
++    /**
++     * @return true if the product should be built for the given target environment, false otherwise
++     */
++    boolean buildForEnv(TargetEnvironment env) {
++        return !runningEnvOnly || TargetEnvironment.getRunningEnvironment().equals(env);
++    }
+ }
+diff --git a/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/DirectorMojo.java b/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/DirectorMojo.java
+index 8bd539f..f95ce7e 100644
+--- a/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/DirectorMojo.java
++++ b/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/DirectorMojo.java
+@@ -114,6 +114,9 @@ public final class DirectorMojo extends AbstractProductMojo {
+         RepositoryReferences sources = getSourceRepositories();
+         for (Product product : products) {
+             for (TargetEnvironment env : getEnvironments()) {
++                if (!buildForEnv(env)) {
++                    continue;
++                }
+                 DirectorRuntime.Command command = director.newInstallCommand();
+ 
+                 File destination = getProductMaterializeDirectory(product, env);
+diff --git a/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/ProductArchiverMojo.java b/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/ProductArchiverMojo.java
+index 6a5c967..0e8df2a 100644
+--- a/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/ProductArchiverMojo.java
++++ b/tycho-p2/tycho-p2-director-plugin/src/main/java/org/eclipse/tycho/plugins/p2/director/ProductArchiverMojo.java
+@@ -129,6 +129,9 @@ public final class ProductArchiverMojo extends AbstractProductMojo {
+ 
+         for (Product product : config.getProducts()) {
+             for (TargetEnvironment env : getEnvironments()) {
++                if (!buildForEnv(env)) {
++                    continue;
++                }
+                 String format = formats != null ? formats.get(env.getOs()) : DEFAULT_ARCHIVE_FORMAT;
+                 if (format != null) {
+                     format = format.trim();
+-- 
+1.9.3
+

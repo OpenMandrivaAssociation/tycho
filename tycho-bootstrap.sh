@@ -55,13 +55,14 @@ osgiLocations=( '/usr/share/java' '/usr/lib/java' '/usr/lib*/eclipse' )
 
 if [ ${eclipse_bootstrap} -eq 1 ]; then
 prefix="$(pwd)/bootstrap"
-osgiLocations+=( ${osgiLocations[@]/#/${prefix}} )
+osgiLocations=( ${osgiLocations[@]/#/${prefix}} )
+osgiLocations+=( ${osgiLocations[@]/${prefix}/} )
 fi
 
 wantedBundles=`echo $1 | tr ',' ' '`
 destDir=$2
 
-for loc in ${osgiLocations[@]} ; do
+for loc in ${osgiLocations[@]} $(pwd)/bootstrap/extras ; do
   for jar in `find ${loc} -name "*.jar"`; do
     bsn=`readBSN ${jar}`
     versionline=`unzip -p ${jar} 'META-INF/MANIFEST.MF' | grep 'Bundle-Version:'`
@@ -70,12 +71,22 @@ for loc in ${osgiLocations[@]} ; do
       echo ${wantedBundles} | grep -q "${bsn}"
       if [ $? -eq 0 ]; then
         cp ${jar} "${destDir}/${bsn}_${vers}.jar"
-        wantedBundles=`echo ${wantedBundles} | sed "s/\(${bsn}\s\|\s${bsn}\s\|\s${bsn}\)/ /"`
+        wantedBundles=`removeFromList "${wantedBundles}" "${bsn}"`
       fi
     fi
   done
 done
 
+}
+
+function removeFromList () {
+arr=( ${1} )
+for (( i=0; i < ${#arr[@]}; i++ )); do
+  if [ "${arr[${i}]}" = "$2" ]; then
+    arr[${i}]=
+  fi
+done
+echo ${arr[@]}
 }
 
 function isolateProject () {
@@ -84,6 +95,7 @@ sed -i '/<parent>/,/<\/parent>/ d' "$1/pom.xml"
 sed -i "/<modelVersion>/ a <groupId>org.eclipse.tycho<\/groupId><version>${v}<\/version>" "$1/pom.xml"
 
 sed -i "/<artifactId>org.eclipse.osgi<\/artifactId>/ a <version>${osgiV}</version>" "$1/pom.xml"
+sed -i "/<artifactId>org.eclipse.osgi.compatibility.state<\/artifactId>/ a <version>${osgiV}</version>" "$1/pom.xml"
 }
 
 function unifyProject () {
@@ -132,9 +144,9 @@ echo ${bsn}
 
 
 eclipse_bootstrap=$1
-preV='0.20.0'
-v='0.20.0-SNAPSHOT'
-osgiV='3.9.1.v20131014-1715'
+preV='0.21.0'
+v='0.21.0-SNAPSHOT'
+osgiV='3.10.0.v20140328-1811'
 bundles=()
 bundles[0]='tycho-bundles/org.eclipse.tycho.embedder.shared'
 bundles[1]='tycho-bundles/org.eclipse.tycho.core.shared'
@@ -144,6 +156,8 @@ bundles[4]='tycho-bundles/org.eclipse.tycho.p2.maven.repository'
 bundles[5]='tycho-bundles/org.eclipse.tycho.p2.resolver.impl'
 bundles[6]='tycho-bundles/org.eclipse.tycho.p2.tools.impl'
 
+xtraBundles[0]='fedoraproject-p2/org.fedoraproject.p2'
+
 deps[0]=""
 deps[1]="tycho-bundles/org.eclipse.tycho.embedder.shared/target/org.eclipse.tycho.embedder.shared-${v}.jar"
 deps[2]="tycho-bundles/org.eclipse.tycho.embedder.shared/target/org.eclipse.tycho.embedder.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.core.shared/target/org.eclipse.tycho.core.shared-${v}.jar"
@@ -152,9 +166,13 @@ deps[4]="tycho-bundles/org.eclipse.tycho.embedder.shared/target/org.eclipse.tych
 deps[5]="tycho-bundles/org.eclipse.tycho.embedder.shared/target/org.eclipse.tycho.embedder.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.core.shared/target/org.eclipse.tycho.core.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.resolver.shared/target/org.eclipse.tycho.p2.resolver.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.maven.repository/target/org.eclipse.tycho.p2.maven.repository-${v}.jar"
 deps[6]="tycho-bundles/org.eclipse.tycho.embedder.shared/target/org.eclipse.tycho.embedder.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.core.shared/target/org.eclipse.tycho.core.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.resolver.shared/target/org.eclipse.tycho.p2.resolver.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.tools.shared/target/org.eclipse.tycho.p2.tools.shared-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.maven.repository/target/org.eclipse.tycho.p2.maven.repository-${v}.jar:tycho-bundles/org.eclipse.tycho.p2.resolver.impl/target/org.eclipse.tycho.p2.resolver.impl-${v}.jar"
 
+xtraDeps[0]=""
+
 externalDeps[4]="org.eclipse.equinox.common,org.eclipse.equinox.p2.repository,org.eclipse.equinox.p2.metadata,org.eclipse.equinox.p2.core,org.eclipse.equinox.p2.metadata.repository,org.eclipse.equinox.p2.artifact.repository,org.eclipse.osgi"
 externalDeps[5]="org.eclipse.core.runtime,org.eclipse.equinox.security,org.eclipse.equinox.frameworkadmin.equinox,org.eclipse.equinox.frameworkadmin,org.eclipse.equinox.p2.core,org.eclipse.equinox.p2.metadata,org.eclipse.equinox.p2.publisher,org.eclipse.equinox.p2.publisher.eclipse,org.eclipse.equinox.p2.artifact.repository,org.eclipse.equinox.p2.metadata.repository,org.eclipse.equinox.p2.director,org.eclipse.equinox.p2.repository,org.eclipse.equinox.p2.updatesite,org.eclipse.core.net,org.eclipse.equinox.common,org.eclipse.osgi,org.eclipse.equinox.preferences"
 externalDeps[6]="org.eclipse.equinox.p2.director.app,org.eclipse.equinox.p2.core,org.eclipse.equinox.p2.publisher,org.eclipse.equinox.p2.updatesite,org.eclipse.core.runtime,org.eclipse.equinox.p2.metadata,org.eclipse.equinox.p2.repository,org.eclipse.equinox.p2.repository.tools,org.eclipse.equinox.p2.metadata.repository,org.eclipse.equinox.p2.artifact.repository,org.eclipse.equinox.p2.publisher.eclipse,org.eclipse.equinox.p2.engine,org.eclipse.equinox.p2.director,org.eclipse.osgi,org.eclipse.equinox.common,org.eclipse.equinox.app,org.eclipse.equinox.registry"
+
+xtraExternalDeps[0]="org.eclipse.osgi,org.eclipse.core.runtime,org.eclipse.equinox.common,org.eclipse.equinox.p2.metadata,org.eclipse.equinox.p2.repository,org.eclipse.equinox.p2.core,org.eclipse.equinox.p2.publisher.eclipse,org.eclipse.equinox.p2.publisher,org.eclipse.equinox.p2.touchpoint.eclipse,org.eclipse.equinox.p2.updatesite"
 
 reactorprojs=( 'tycho-embedder-api' 'tycho-metadata-model' 'sisu-equinox/sisu-equinox-api' 'sisu-equinox/sisu-equinox-embedder' 'tycho-core' 'tycho-packaging-plugin' 'tycho-p2/tycho-p2-facade' 'tycho-maven-plugin' 'tycho-p2/tycho-p2-repository-plugin' 'tycho-p2/tycho-p2-publisher-plugin' 'target-platform-configuration' 'tycho-artifactcomparator' 'sisu-equinox/sisu-equinox-launching' 'tycho-p2/tycho-p2-plugin' 'tycho-compiler-jdt' 'tycho-compiler-plugin' )
 
@@ -164,8 +182,15 @@ for ((i=0; i < ${#bundles[@]}; i++)) ;do
   echo 'Building ' ${bundles[${i}]} '...'
   echo ''
   isolateProject ${bundles[${i}]}
-  minibuild ${bundles[${i}]} ${deps[${i}]} ${externalDeps[${i}]}
+  minibuild ${bundles[${i}]} "${deps[${i}]}" ${externalDeps[${i}]}
   unifyProject ${bundles[${i}]}
+done
+
+for ((i=0; i < ${#xtraBundles[@]}; i++)) ;do
+  echo ''
+  echo 'Building ' ${xtraBundles[${i}]} '...'
+  echo ''
+  minibuild ${xtraBundles[${i}]} "${xtraDeps[${i}]}" ${xtraExternalDeps[${i}]}
 done
 
 # Can't have empty mojo project
@@ -201,6 +226,12 @@ for proj in ${reactorprojs[@]} ; do
   unifyProject ${proj}
 done
 
+# Add org.fedoraproject.p2 to target platform for tycho-bundles-external
+extras='bootstrap/extras'
+mkdir -p ${extras}
+fp2Loc=`find .m2 -name "org.fedoraproject.p2-*.jar"`
+cp ${fp2Loc} ${extras}
+
 # Tycho Bundles External (needed for Tycho's OSGi Runtime)
 tbeDir='tycho-bundles/tycho-bundles-external'
 tbeTargetDir="${tbeDir}/target"
@@ -221,7 +252,7 @@ mkdir -p 'eclipse/configuration'
 
 echo '#Product Runtime Configuration File
 #Thu Dec 19 21:40:37 EST 2013
-osgi.bundles=org.apache.commons.codec,org.apache.commons.logging,org.apache.httpcomponents.httpclient,org.apache.httpcomponents.httpcore,org.eclipse.core.contenttype,org.eclipse.core.jobs,org.eclipse.core.net,org.eclipse.core.runtime@4\:start,org.eclipse.core.runtime.compatibility.registry,org.eclipse.ecf,org.eclipse.ecf.filetransfer,org.eclipse.ecf.identity,org.eclipse.ecf.provider.filetransfer,org.eclipse.ecf.provider.filetransfer.httpclient4,org.eclipse.ecf.provider.filetransfer.httpclient4.ssl,org.eclipse.ecf.provider.filetransfer.ssl,org.eclipse.ecf.ssl,org.eclipse.equinox.app,org.eclipse.equinox.common@2\:start,org.eclipse.equinox.concurrent,org.eclipse.equinox.ds@2\:start,org.eclipse.equinox.frameworkadmin,org.eclipse.equinox.frameworkadmin.equinox,org.eclipse.equinox.launcher,org.eclipse.equinox.p2.artifact.repository,org.eclipse.equinox.p2.core,org.eclipse.equinox.p2.director,org.eclipse.equinox.p2.director.app,org.eclipse.equinox.p2.engine,org.eclipse.equinox.p2.garbagecollector,org.eclipse.equinox.p2.jarprocessor,org.eclipse.equinox.p2.metadata,org.eclipse.equinox.p2.metadata.repository,org.eclipse.equinox.p2.publisher,org.eclipse.equinox.p2.publisher.eclipse,org.eclipse.equinox.p2.repository,org.eclipse.equinox.p2.repository.tools,org.eclipse.equinox.p2.touchpoint.eclipse,org.eclipse.equinox.p2.touchpoint.natives,org.eclipse.equinox.p2.transport.ecf,org.eclipse.equinox.p2.updatesite,org.eclipse.equinox.preferences,org.eclipse.equinox.registry,org.eclipse.equinox.security,org.eclipse.equinox.simpleconfigurator,org.eclipse.equinox.simpleconfigurator.manipulator,org.eclipse.equinox.util,org.eclipse.osgi.services,org.eclipse.tycho.noopsecurity,org.sat4j.core,org.sat4j.pb
+osgi.bundles=org.apache.commons.codec,org.apache.commons.logging,org.apache.httpcomponents.httpclient,org.apache.httpcomponents.httpcore,org.eclipse.core.contenttype,org.eclipse.core.jobs,org.eclipse.core.net,org.eclipse.core.runtime@4\:start,org.eclipse.core.runtime.compatibility.registry,org.eclipse.ecf,org.eclipse.ecf.filetransfer,org.eclipse.ecf.identity,org.eclipse.ecf.provider.filetransfer,org.eclipse.ecf.provider.filetransfer.httpclient4,org.eclipse.ecf.provider.filetransfer.httpclient4.ssl,org.eclipse.ecf.provider.filetransfer.ssl,org.eclipse.ecf.ssl,org.eclipse.equinox.app,org.eclipse.equinox.common@2\:start,org.eclipse.equinox.concurrent,org.eclipse.equinox.ds@2\:start,org.eclipse.equinox.frameworkadmin,org.eclipse.equinox.frameworkadmin.equinox,org.eclipse.equinox.launcher,org.eclipse.equinox.p2.artifact.repository,org.eclipse.equinox.p2.core,org.eclipse.equinox.p2.director,org.eclipse.equinox.p2.director.app,org.eclipse.equinox.p2.engine,org.eclipse.equinox.p2.garbagecollector,org.eclipse.equinox.p2.jarprocessor,org.eclipse.equinox.p2.metadata,org.eclipse.equinox.p2.metadata.repository,org.eclipse.equinox.p2.publisher,org.eclipse.equinox.p2.publisher.eclipse,org.eclipse.equinox.p2.repository,org.eclipse.equinox.p2.repository.tools,org.eclipse.equinox.p2.touchpoint.eclipse,org.eclipse.equinox.p2.touchpoint.natives,org.eclipse.equinox.p2.transport.ecf,org.eclipse.equinox.p2.updatesite,org.eclipse.equinox.preferences,org.eclipse.equinox.registry,org.eclipse.equinox.security,org.eclipse.equinox.simpleconfigurator,org.eclipse.equinox.simpleconfigurator.manipulator,org.eclipse.equinox.util,org.eclipse.osgi.services,org.eclipse.osgi.compatibility.state,org.eclipse.tycho.noopsecurity,org.sat4j.core,org.sat4j.pb,org.fedoraproject.p2
 osgi.bundles.defaultStartLevel=4
 eclipse.product=org.eclipse.equinox.p2.director.app.product
 osgi.splashPath=platform\:/base/plugins/org' > 'eclipse/configuration/config.ini'
@@ -236,4 +267,4 @@ mkdir -p ${loc}
 cp "${tbeTargetDir}/tycho-bundles-external-${v}.zip" ${loc}
 cp 'tycho-bundles/tycho-bundles-external/pom.xml' "${loc}/tycho-bundles-external-${v}.pom"
 
-sed -i "s/<equinoxVersion>.*<\/equinoxVersion>/<equinoxVersion>${osgiV}<\/equinoxVersion>/" pom.xml
+sed -i "s/<equinox\(.*\)VersionMaven>.*<\/equinox\(.*\)VersionMaven>/<equinox\1VersionMaven>${osgiV}<\/equinox\1VersionMaven>/" pom.xml

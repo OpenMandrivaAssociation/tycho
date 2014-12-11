@@ -1,5 +1,5 @@
 diff --git a/tycho-artifactcomparator/pom.xml b/tycho-artifactcomparator/pom.xml
-index ef8182a..52d98fc 100644
+index adfdd95..81ad821 100644
 --- a/tycho-artifactcomparator/pom.xml
 +++ b/tycho-artifactcomparator/pom.xml
 @@ -51,6 +51,15 @@
@@ -19,7 +19,7 @@ index ef8182a..52d98fc 100644
      </plugins>
    </build>
 diff --git a/tycho-compiler-jdt/pom.xml b/tycho-compiler-jdt/pom.xml
-index 790e756..8e4f294 100644
+index 4c0c304..bfa9030 100644
 --- a/tycho-compiler-jdt/pom.xml
 +++ b/tycho-compiler-jdt/pom.xml
 @@ -25,10 +25,19 @@
@@ -47,7 +47,7 @@ index 790e756..8e4f294 100644
  	</build>
  
 diff --git a/tycho-compiler-plugin/pom.xml b/tycho-compiler-plugin/pom.xml
-index 3d00c67..67d5ed2 100644
+index 923405d..33ce36d 100644
 --- a/tycho-compiler-plugin/pom.xml
 +++ b/tycho-compiler-plugin/pom.xml
 @@ -63,19 +63,6 @@
@@ -71,7 +71,7 @@ index 3d00c67..67d5ed2 100644
  			<artifactId>bcel</artifactId>
  			<scope>test</scope>
 diff --git a/tycho-core/pom.xml b/tycho-core/pom.xml
-index 853bcf4..9cde68b 100644
+index 9f79a46..10628cf 100644
 --- a/tycho-core/pom.xml
 +++ b/tycho-core/pom.xml
 @@ -59,11 +59,19 @@
@@ -99,24 +99,24 @@ index 853bcf4..9cde68b 100644
  			<plugin>
  				<groupId>org.apache.felix</groupId>
  				<artifactId>maven-bundle-plugin</artifactId>
-@@ -152,12 +157,6 @@
- 			<version>1.1.0</version>
+@@ -148,12 +156,6 @@
  		</dependency>
  
--		<dependency>
+ 		<dependency>
 -			<groupId>org.eclipse.tycho</groupId>
 -			<artifactId>tycho-testing-harness</artifactId>
 -			<version>${project.version}</version>
 -			<scope>test</scope>
 -		</dependency>
-         <dependency>
-             <groupId>org.apache.maven</groupId>
-             <artifactId>maven-compat</artifactId>
+-		<dependency>
+ 			<groupId>org.apache.maven</groupId>
+ 			<artifactId>maven-compat</artifactId>
+ 			<scope>test</scope>
 diff --git a/tycho-maven-plugin/src/main/resources/META-INF/plexus/components.xml b/tycho-maven-plugin/src/main/resources/META-INF/plexus/components.xml
-index 4ace7ab..edaf13f 100644
+index 040a199..8fb2005 100644
 --- a/tycho-maven-plugin/src/main/resources/META-INF/plexus/components.xml
 +++ b/tycho-maven-plugin/src/main/resources/META-INF/plexus/components.xml
-@@ -92,9 +92,6 @@
+@@ -94,9 +94,6 @@
                  org.eclipse.tycho:tycho-packaging-plugin:${project.version}:package-plugin,
                  org.eclipse.tycho:tycho-p2-plugin:${project.version}:p2-metadata-default
                </package>
@@ -127,10 +127,10 @@ index 4ace7ab..edaf13f 100644
                  org.apache.maven.plugins:maven-install-plugin:${install-plugin.version}:install,
                  org.eclipse.tycho:tycho-p2-plugin:${project.version}:update-local-index
 diff --git a/tycho-p2/tycho-p2-plugin/pom.xml b/tycho-p2/tycho-p2-plugin/pom.xml
-index 02a37e1..b078fc9 100644
+index e25b6d9..7e8a7f2 100644
 --- a/tycho-p2/tycho-p2-plugin/pom.xml
 +++ b/tycho-p2/tycho-p2-plugin/pom.xml
-@@ -50,21 +50,23 @@
+@@ -53,21 +53,23 @@
              <artifactId>tycho-artifactcomparator</artifactId>
              <version>${project.version}</version>
          </dependency>
@@ -166,10 +166,10 @@ index 02a37e1..b078fc9 100644
      </build>
  
 diff --git a/tycho-p2/tycho-p2-publisher-plugin/pom.xml b/tycho-p2/tycho-p2-publisher-plugin/pom.xml
-index 4a75ef1..4dd136a 100644
+index e52cf18..bcd8c91 100644
 --- a/tycho-p2/tycho-p2-publisher-plugin/pom.xml
 +++ b/tycho-p2/tycho-p2-publisher-plugin/pom.xml
-@@ -45,12 +45,6 @@
+@@ -48,12 +48,6 @@
  			<artifactId>tycho-packaging-plugin</artifactId>
  			<version>${project.version}</version>
  		</dependency>
@@ -183,14 +183,13 @@ index 4a75ef1..4dd136a 100644
  
  </project>
 diff --git a/tycho-packaging-plugin/pom.xml b/tycho-packaging-plugin/pom.xml
-index 908fbf9..25cbd22 100644
+index 0990b2d..7dd1d68 100644
 --- a/tycho-packaging-plugin/pom.xml
 +++ b/tycho-packaging-plugin/pom.xml
-@@ -32,19 +32,6 @@
- 			<artifactId>tycho-core</artifactId>
+@@ -33,19 +33,6 @@
  			<version>${project.version}</version>
  		</dependency>
--		<dependency>
+ 		<dependency>
 -			<groupId>org.eclipse.tycho</groupId>
 -			<artifactId>tycho-testing-harness</artifactId>
 -			<version>${project.version}</version>
@@ -203,30 +202,31 @@ index 908fbf9..25cbd22 100644
 -			<scope>test</scope>
 -			<classifier>tests</classifier>
 -		</dependency>
-         <dependency>
-             <groupId>org.apache.maven</groupId>
-             <artifactId>maven-compat</artifactId>
+-		<dependency>
+ 			<groupId>org.apache.maven</groupId>
+ 			<artifactId>maven-compat</artifactId>
+ 			<scope>test</scope>
 @@ -78,10 +65,19 @@
  
-     <build>
-         <plugins>
--            <plugin>
--                <groupId>org.codehaus.plexus</groupId>
--                <artifactId>plexus-component-metadata</artifactId>
--            </plugin>
-+          <plugin>
-+            <groupId>org.codehaus.plexus</groupId>
-+            <artifactId>plexus-component-metadata</artifactId>
-+            <version>1.5.5</version>
-+            <executions>
-+              <execution>
-+                <goals>
-+                  <goal>generate-metadata</goal>
-+                  <goal>generate-test-metadata</goal>
-+                </goals>
-+              </execution>
-+            </executions>
-+          </plugin>
-         </plugins>
-     </build>
+ 	<build>
+ 		<plugins>
+-			<plugin>
+-				<groupId>org.codehaus.plexus</groupId>
+-				<artifactId>plexus-component-metadata</artifactId>
+-			</plugin>
++		  <plugin>
++		    <groupId>org.codehaus.plexus</groupId>
++		    <artifactId>plexus-component-metadata</artifactId>
++                    <version>1.5.5</version>
++                    <executions>
++		      <execution>
++			<goals>
++			  <goal>generate-metadata</goal>
++			  <goal>generate-test-metadata</goal>
++			</goals>
++		      </execution>
++                    </executions>
++                  </plugin>
+ 		</plugins>
+ 	</build>
  </project>
