@@ -16,7 +16,7 @@
 # %%global snap -SNAPSHOT
 %global snap %{nil}
 
-%global fp_p2_sha 44022a
+%global fp_p2_sha 4b8f1d
 %global fp_p2_version 0.0.1
 %global fp_p2_snap -SNAPSHOT
 
