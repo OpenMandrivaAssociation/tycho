@@ -325,7 +325,7 @@ done
 # p2 runtime
 dir=.m2/org/eclipse/tycho/tycho-bundles-external/%{version}%{snap}
 %if ! %{eclipse_bootstrap}
-./%{name}-debundle.sh tycho-bundles/tycho-bundles-external/ $dir/tycho-bundles-external-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external-manifest.txt
+bash ./%{name}-debundle.sh tycho-bundles/tycho-bundles-external/ $dir/tycho-bundles-external-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external-manifest.txt
 %endif
 install -pm 644 $dir/tycho-bundles-external-%{version}*.pom $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-tycho-bundles-external.pom
 install -m 644 $dir/tycho-bundles-external-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external.zip
@@ -340,7 +340,7 @@ install -pm 644 pom.xml  $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.%{name}-main.pom
 
 # standalone p2 director
 %if ! %{eclipse_bootstrap}
-./%{name}-debundle.sh tycho-bundles/tycho-standalone-p2-director/ .m2/org/eclipse/tycho/tycho-standalone-p2-director/%{version}%{snap}/tycho-standalone-p2-director-%{version}*.zip
+bash ./%{name}-debundle.sh tycho-bundles/tycho-standalone-p2-director/ .m2/org/eclipse/tycho/tycho-standalone-p2-director/%{version}%{snap}/tycho-standalone-p2-director-%{version}*.zip
 %endif
 pushd .m2/org/eclipse/tycho/tycho-standalone-p2-director/%{version}%{snap}/
 install -m 644 tycho-standalone-p2-director-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-standalone-p2-director.zip
