@@ -7,7 +7,7 @@
 # This basically uses javac + xmvn to build only the Tycho components
 # required to perform a full Tycho build
 # Most common usage : A library (in Fedora) used by Tycho's runtime broke API
-%global tycho_bootstrap 1
+%global tycho_bootstrap 0
 # Set 'eclipse_bootstrap' if Eclipse from buildroot cannot help build Tycho
 # This basically provides a location for usage of pre-bundled Eclipse
 # Possible uses : Need to build Tycho before Eclipse in fresh buildroot
@@ -16,22 +16,22 @@
 # %%global snap -SNAPSHOT
 %global snap %{nil}
 
-%global fp_p2_sha 4b8f1d
+%global fp_p2_sha 3d4a0c
 %global fp_p2_version 0.0.1
 %global fp_p2_snap -SNAPSHOT
 
 %define __requires_exclude osgi*
 
 Name:           tycho
-Version:        0.21.0
-Release:        14
+Version:        0.22.0
+Release:        7%{?dist}
 Summary:        Plugins and extensions for building Eclipse plugins and OSGI bundles with Maven
-Group:          System/Libraries
 
+Group:          System/Libraries
 # license file is missing but all files having some licensing information are ASL 2.0
 License:        ASL 2.0 and EPL
 URL:            http://eclipse.org/tycho
-Source0:        http://git.eclipse.org/c/tycho/org.eclipse.tycho.git/snapshot/tycho-0.21.0.tar.bz2
+Source0:        http://git.eclipse.org/c/tycho/org.eclipse.tycho.git/snapshot/org.eclipse.tycho-tycho-0.22.0.tar.bz2
 
 # this is a workaround for maven-plugin-plugin changes that happened after
 # version 2.4.3 (impossible to have empty mojo created as aggregate). This
@@ -48,10 +48,11 @@ Source5:        eclipse-bootstrap.tar.xz
 # https://github.com/rgrunber/fedoraproject-p2
 # Generated using 'git archive --prefix=fedoraproject-p2/ -o fedoraproject-p2-%%{fp_p2_sha}.tar %%{fp_p2_sha} && xz fedoraproject-p2-%%{fp_p2_sha}.tar'
 Source6:        fedoraproject-p2-%{fp_p2_sha}.tar.xz
+# Script that can be used to install or simulate installation of P2
+# artifacts. It is used in OSGi requires generation.
+Source7:        p2-install.sh
 
 Patch0:         %{name}-fix-build.patch
-# Upstream builds against maven-surefire 2.12.3
-Patch1:         %{name}-maven-surefire.patch
 Patch2:         %{name}-fix-surefire.patch
 Patch3:         %{name}-use-custom-resolver.patch
 Patch4:         %{name}-maven-delegation.patch
@@ -63,15 +64,11 @@ Patch6:         %{name}-running-env-only.patch
 BuildArch:      noarch
 
 BuildRequires:  java-devel
-BuildRequires:  maven-local
+BuildRequires:  maven-local >= 4.2.0
 BuildRequires:  maven-clean-plugin
-BuildRequires:  maven-compiler-plugin
 BuildRequires:  maven-dependency-plugin
 BuildRequires:  maven-install-plugin
-BuildRequires:  maven-jar-plugin
-BuildRequires:  maven-javadoc-plugin
 BuildRequires:  maven-release-plugin
-BuildRequires:  maven-resources-plugin
 BuildRequires:  maven-verifier
 BuildRequires:  objectweb-asm
 BuildRequires:  plexus-containers-component-metadata
@@ -81,12 +78,15 @@ BuildRequires:  easymock
 BuildRequires:  ecj
 BuildRequires:  maven-plugin-testing-harness
 BuildRequires:  xmvn-parent-pom
-%if ! %{tycho_bootstrap}
+%if %{tycho_bootstrap}
+BuildRequires:  maven-deploy-plugin
+BuildRequires:  maven-site-plugin
+%else
 BuildRequires:  %{name}
 %endif
 %if %{eclipse_bootstrap}
 # Dependencies for Eclipse bundles we use
-BuildRequires:  icu4j-eclipse
+BuildRequires:  icu4j
 BuildRequires:  geronimo-annotation
 BuildRequires:  sac
 BuildRequires:  sat4j
@@ -101,11 +101,9 @@ BuildRequires:  jetty-servlet
 BuildRequires:  maven-shared-utils
 BuildRequires:  mockito
 BuildRequires:	zip
-
 Requires:       apache-commons-exec
 Requires:       decentxml
-Requires:       maven-local
-Requires:       maven-clean-plugin
+Requires:       maven-local >= 4.2.0
 Requires:       maven-dependency-plugin
 Requires:       maven-verifier
 Requires:       objectweb-asm
@@ -119,18 +117,9 @@ Requires:       eclipse-platform
 # to resolve plugins like clean, deploy or site, which aren't normally
 # used during package build.  See rhbz#971301
 Requires:       maven-clean-plugin
-Requires:       maven-compiler-plugin
 Requires:       maven-deploy-plugin
 Requires:       maven-install-plugin
-Requires:       maven-jar-plugin
-Requires:       maven-resources-plugin
 Requires:       maven-site-plugin
-Requires:       maven-surefire-plugin
-%if %{tycho_bootstrap}
-BuildRequires:       maven-deploy-plugin
-BuildRequires:       maven-site-plugin
-%endif
-
 
 %description
 Tycho is a set of Maven plugins and extensions for building Eclipse
@@ -168,7 +157,7 @@ Requires:       jpackage-utils
 This package contains the API documentation for %{name}.
 
 %prep
-%setup -q -n %{name}-0.21.0
+%setup -q -n org.eclipse.tycho-tycho-0.22.0
 
 # Prepare fedoraproject-p2
 tar -xf %{SOURCE6}
@@ -176,7 +165,6 @@ tar -xf %{SOURCE6}
 %pom_disable_module org.fedoraproject.p2.tests fedoraproject-p2
 
 %patch0 -p1
-%patch1 -p1
 %patch2 -p1
 %patch3 -p1
 %patch4 -p1
@@ -210,6 +198,16 @@ sed -i '/^<unit id=.*$/d' tycho-bundles/tycho-bundles-target/tycho-bundles-targe
 # org.hamcrest -> org.hamcrest.core
 %pom_xpath_set "pom:requirement[pom:id='org.hamcrest']/pom:id" "org.hamcrest.core" tycho-bundles/org.eclipse.tycho.p2.maven.repository.tests
 
+# Build against plexus-archiver 2.6
+#pushd tycho-its/src/test/java/org/eclipse/tycho/test/
+#for f in TYCHO0439repositoryCategories/RepositoryCategoriesTest.java \
+#         product/Util.java; do
+#sed -i 's/org.codehaus.plexus.archiver.zip.ZipEntry/org.apache.commons.compress.archivers.zip.ZipArchiveEntry/g
+#        s/org.codehaus.plexus.archiver.zip.ZipFile/org.apache.commons.compress.archivers.zip.ZipFile/g
+#        s/ZipEntry/ZipArchiveEntry/g' $f
+#done
+#popd
+
 # we don't have org.apache.commons:commons-compress:jar:sources
 %pom_xpath_remove "pom:dependency[pom:classifier='sources' and pom:artifactId='commons-compress']" tycho-p2/tycho-p2-director-plugin
 
@@ -225,7 +223,7 @@ tar -xf %{SOURCE5}
 
 # Perform the 'minimal' (bootstrap) build of Tycho
 cp %{SOURCE2} %{SOURCE3} .
-bash %{name}-bootstrap.sh %{eclipse_bootstrap}
+bash ./%{name}-bootstrap.sh %{eclipse_bootstrap}
 
 %patch5 -p1 -R
 
@@ -283,8 +281,8 @@ clean install org.apache.maven.plugins:maven-javadoc-plugin:aggregate
 
 cp %{SOURCE2} %{SOURCE4} .
 
-mkdir -p $RPM_BUILD_ROOT%{_javadir}/%{name}
-install -d -m 755 $RPM_BUILD_ROOT%{_mavenpomdir}
+install -dm 755 $RPM_BUILD_ROOT%{_javadir}/tycho
+install -dm 755 $RPM_BUILD_ROOT%{_mavenpomdir}
 
 # fedoraproject-p2 parent
 mod=fedoraproject-p2
@@ -333,9 +331,7 @@ install -pm 644 $dir/tycho-bundles-external-%{version}*.pom $RPM_BUILD_ROOT%{_ma
 install -m 644 $dir/tycho-bundles-external-%{version}*.zip $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external.zip
 %add_maven_depmap JPP.%{name}-tycho-bundles-external.pom %{name}/tycho-bundles-external.zip -a "org.eclipse.tycho:tycho-bundles-external"
 %if ! %{eclipse_bootstrap}
-cp $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external-manifest.txt{,~}  # workaround for rhbz#1139180
 %add_maven_depmap org.eclipse.tycho:tycho-bundles-external:txt:manifest:%{version}%{snap} %{name}/tycho-bundles-external-manifest.txt
-mv $RPM_BUILD_ROOT%{_javadir}/%{name}/tycho-bundles-external-manifest.txt{~,}  # workaround for rhbz#1139180
 %endif
 
 # main
@@ -353,8 +349,12 @@ popd
 %add_maven_depmap JPP.%{name}-tycho-standalone-p2-director.pom tycho/tycho-standalone-p2-director.zip -a "org.eclipse.tycho:tycho-standalone-p2-director"
 
 # javadoc
-install -dm 755 $RPM_BUILD_ROOT%{_javadocdir}/%{name}
-cp -pr target/site/api*/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}
+install -dm 755 $RPM_BUILD_ROOT%{_javadocdir}/tycho
+cp -pr target/site/api*/* $RPM_BUILD_ROOT%{_javadocdir}/tycho
+
+# p2-install script
+install -dm 755 $RPM_BUILD_ROOT%{_javadir}-utils/
+install -pm 755 %{SOURCE7} $RPM_BUILD_ROOT%{_javadir}-utils/
 
 %if %{eclipse_bootstrap}
 # org.eclipse.osgi
@@ -370,8 +370,8 @@ echo '<?xml version="1.0" encoding="UTF-8"?>
 </project>' > JPP.tycho-osgi.pom
 
 install -pm 644 JPP.tycho-osgi.pom $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.tycho-osgi.pom
-install -m 644 $osgiJarPath $RPM_BUILD_ROOT%{_javadir}/%{name}/osgi.jar
-%add_maven_depmap JPP.%{name}-osgi.pom %{name}/osgi.jar -a "org.eclipse.tycho:org.eclipse.osgi"
+install -m 644 $osgiJarPath $RPM_BUILD_ROOT%{_javadir}/tycho/osgi.jar
+%add_maven_depmap JPP.tycho-osgi.pom tycho/osgi.jar -a "org.eclipse.tycho:org.eclipse.osgi"
 
 # org.eclipse.osgi.compatibility.state
 osgiStateJarPath=`find ".m2/org" -name "org.eclipse.osgi.compatibility.state_*.jar"`
@@ -386,25 +386,91 @@ echo '<?xml version="1.0" encoding="UTF-8"?>
 </project>' > JPP.tycho-osgi.compatibility.state.pom
 
 install -pm 644 JPP.tycho-osgi.compatibility.state.pom $RPM_BUILD_ROOT%{_mavenpomdir}/JPP.tycho-osgi.compatibility.state.pom
-install -m 644 $osgiStateJarPath $RPM_BUILD_ROOT%{_javadir}/%{name}/osgi.compatibility.state.jar
-%add_maven_depmap JPP.%{name}-osgi.compatibility.state.pom %{name}/osgi.compatibility.state.jar -a "org.eclipse.tycho:org.eclipse.osgi.compatibility.state"
+install -m 644 $osgiStateJarPath $RPM_BUILD_ROOT%{_javadir}/tycho/osgi.compatibility.state.jar
+%add_maven_depmap JPP.tycho-osgi.compatibility.state.pom tycho/osgi.compatibility.state.jar -a "org.eclipse.tycho:org.eclipse.osgi.compatibility.state"
 %endif
 
 # Symlink XMvn P2 plugin with all dependencies so that it can be loaded by XMvn
-install -d -m 755 %{buildroot}%{_datadir}/xmvn/lib/installer/
+install -dm 755 %{buildroot}%{_datadir}/xmvn/lib/installer/
+%if %{eclipse_bootstrap}
+ln -s %{_javadir}/tycho/osgi.jar %{buildroot}%{_datadir}/xmvn/lib/installer/
+%else
 ln -s %{_javadir}/eclipse/osgi.jar %{buildroot}%{_datadir}/xmvn/lib/installer/
-ln -s %{_javadir}/%{name}/xmvn-p2-installer-plugin.jar %{buildroot}%{_datadir}/xmvn/lib/installer/
-ln -s %{_javadir}/%{name}/org.fedoraproject.p2.jar %{buildroot}%{_datadir}/xmvn/lib/installer/
+%endif
+ln -s %{_javadir}/tycho/xmvn-p2-installer-plugin.jar %{buildroot}%{_datadir}/xmvn/lib/installer/
+ln -s %{_javadir}/tycho/org.fedoraproject.p2.jar %{buildroot}%{_datadir}/xmvn/lib/installer/
 
 %files -f .mfiles
-%dir %{_javadir}/%{name}
+%dir %{_javadir}/tycho
 %{_datadir}/xmvn/lib/installer/*
+%{_javadir}-utils/p2-install.sh
 %doc README.md
 
 %files javadoc
-%{_javadocdir}/%{name}
+%{_javadocdir}/tycho
 
 %changelog
+* Thu Dec 11 2014 Mat Booth <mat.booth@redhat.com> - 0.22.0-7
+- fedoraproject-p2: Fix for bundles containing underscores
+
+* Wed Dec 10 2014 Mat Booth <mat.booth@redhat.com> - 0.22.0-6
+- fedoraproject-p2: Update to latest snapshot
+
+* Wed Dec 10 2014 Roland Grunberg <rgrunber@redhat.com> - 0.22.0-5
+- Rebuild to pick up arch-independent ECF bundle locations.
+
+* Mon Dec 08 2014 Roland Grunberg <rgrunber@redhat.com> - 0.22.0-4
+- fedoraproject-p2: Permit installation of tycho-generated source features.
+
+* Thu Dec  4 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.22.0-3
+- Non-bootstrap build
+
+* Thu Dec  4 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.22.0-2.1
+- fedoraproject-p2: Add support for installation into SCLs
+- Bootstrap build
+
+* Thu Dec 04 2014 Mat Booth <mat.booth@redhat.com> - 0.22.0-2
+- Fix osgi.jar symlink when in eclipse-bootstrap mode
+- Remove no longer needed workaround for rhbz#1139180
+- Tidy up and remove unneeded R/BRs
+- Also reduce number of changes needed to SCL-ise package
+
+* Mon Dec 01 2014 Mat Booth <mat.booth@redhat.com> - 0.22.0-1
+- Update to tagged release
+
+* Thu Nov 27 2014 Roland Grunberg <rgrunber@redhat.com> - 0.22.0-0.1.gitb1051d
+- Update to 0.22.0 pre-release.
+
+* Thu Nov 27 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.21.0-23
+- fedoraproject-p2: Obtain SCL roots by parsing Java conf files
+- fedoraproject-p2: Add support for installing into SCL root
+
+* Thu Nov 27 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.21.0-22
+- Install p2-install.sh script in java-utils/
+
+* Thu Nov 27 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.21.0-21
+- fedoraproject-p2: Implement installer application
+
+* Tue Nov 25 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.21.0-20
+- fedoraproject-p2: Update to latest snapshot (SCL improvements)
+
+* Thu Nov 06 2014 Mat Booth <mat.booth@redhat.com> - 0.21.0-19
+- fedoraproject-p2: Fix occasionally failing to generate metadata
+
+* Tue Oct 28 2014 Roland Grunberg <rgrunber@redhat.com> - 0.21.0-18
+- Fixes to bootstrap build.
+- Package com.ibm.icu (icu4j-eclipse) for bootstrap build.
+- Resolves: rhbz#1129801
+
+* Thu Oct 09 2014 Mat Booth <mat.booth@redhat.com> - 0.21.0-17
+- fedoraproject-p2: Fix incorrect metadata generation bugs
+
+* Tue Oct 07 2014 Mat Booth <mat.booth@redhat.com> - 0.21.0-16
+- fedoraproject-p2: Update to latest snapshot
+
+* Thu Oct 02 2014 Roland Grunberg <rgrunber@redhat.com> - 0.21.0-15
+- Update to build against plexus-archiver 2.6.
+
 * Thu Sep 25 2014 Mikolaj Izdebski <mizdebsk@redhat.com> - 0.21.0-14
 - fedoraproject-p2: Fix requires generation bug
 

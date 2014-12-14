@@ -1,4 +1,4 @@
-From 7e3beef99cd00d3b5f0690ec2a3c19b16facb77a Mon Sep 17 00:00:00 2001
+From 824f4a6c2db4f229e43de0c217d00a0c2c5b723d Mon Sep 17 00:00:00 2001
 From: Roland Grunberg <rgrunber@redhat.com>
 Date: Wed, 18 Jun 2014 13:01:31 -0400
 Subject: [PATCH] Tycho should always delegate artifact resolution to Maven.
@@ -17,9 +17,9 @@ locations.
 Change-Id: Ia44969ed1064965a82c3507a63e54caeebb75b18
 ---
  .../META-INF/MANIFEST.MF                           |  1 +
- .../eclipse/tycho/core/facade/MavenContext.java    |  2 +
- .../tycho/core/facade/MavenContextImpl.java        | 10 ++++-
- .../tycho/core/facade/MavenRepositorySystem.java   | 19 +++++++++
+ .../eclipse/tycho/core/shared/MavenContext.java    |  2 +
+ .../tycho/core/shared/MavenContextImpl.java        | 10 ++++-
+ .../tycho/core/shared/MavenRepositorySystem.java   | 19 +++++++++
  .../local/LocalArtifactRepositoryP2APITest.java    |  4 +-
  .../local/LocalMetadataRepositoryTest.java         |  3 +-
  .../repository/local/LocalArtifactRepository.java  |  8 ++--
@@ -39,23 +39,23 @@ Change-Id: Ia44969ed1064965a82c3507a63e54caeebb75b18
  .../adapters/MavenRepositorySystemAdapter.java     | 37 ++++++++++++++++
  .../configuration/MavenContextConfigurator.java    |  8 +++-
  22 files changed, 166 insertions(+), 62 deletions(-)
- create mode 100644 tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/facade/MavenRepositorySystem.java
+ create mode 100644 tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/shared/MavenRepositorySystem.java
  create mode 100644 tycho-bundles/org.eclipse.tycho.test.utils/src/main/java/org/eclipse/tycho/test/util/MavenRepositorySystemStub.java
  create mode 100644 tycho-core/src/main/java/org/eclipse/tycho/osgi/adapters/MavenRepositorySystemAdapter.java
 
 diff --git a/tycho-bundles/org.eclipse.tycho.core.shared.tests/META-INF/MANIFEST.MF b/tycho-bundles/org.eclipse.tycho.core.shared.tests/META-INF/MANIFEST.MF
-index 453e864..09a83ad 100644
+index 9658fbc..efd0a2c 100644
 --- a/tycho-bundles/org.eclipse.tycho.core.shared.tests/META-INF/MANIFEST.MF
 +++ b/tycho-bundles/org.eclipse.tycho.core.shared.tests/META-INF/MANIFEST.MF
 @@ -7,3 +7,4 @@ Fragment-Host: org.eclipse.tycho.core.shared
- Bundle-RequiredExecutionEnvironment: J2SE-1.5
+ Bundle-RequiredExecutionEnvironment: JavaSE-1.6
  Require-Bundle: org.junit;bundle-version="4.8.2"
  Bundle-Vendor: %providerName
 +Import-Package: org.eclipse.tycho.p2.repository
-diff --git a/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/facade/MavenContext.java b/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/facade/MavenContext.java
-index 3b0f3f4..7ce5afd 100644
---- a/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/facade/MavenContext.java
-+++ b/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/facade/MavenContext.java
+diff --git a/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/shared/MavenContext.java b/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/shared/MavenContext.java
+index d63c1f1..cd8594d 100644
+--- a/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/shared/MavenContext.java
++++ b/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/shared/MavenContext.java
 @@ -38,4 +38,6 @@ public interface MavenContext {
       */
      public Properties getSessionProperties();
@@ -63,10 +63,10 @@ index 3b0f3f4..7ce5afd 100644
 +    public MavenRepositorySystem getRepositorySystem();
 +
  }
-diff --git a/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/facade/MavenContextImpl.java b/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/facade/MavenContextImpl.java
-index 44b0e77..934e890 100644
---- a/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/facade/MavenContextImpl.java
-+++ b/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/facade/MavenContextImpl.java
+diff --git a/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/shared/MavenContextImpl.java b/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/shared/MavenContextImpl.java
+index 7b39d58..a15354f 100644
+--- a/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/shared/MavenContextImpl.java
++++ b/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/shared/MavenContextImpl.java
 @@ -19,18 +19,20 @@ public class MavenContextImpl implements MavenContext {
      private MavenLogger mavenLogger;
      private boolean offline;
@@ -99,11 +99,11 @@ index 44b0e77..934e890 100644
 +    }
 +
  }
-diff --git a/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/facade/MavenRepositorySystem.java b/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/facade/MavenRepositorySystem.java
+diff --git a/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/shared/MavenRepositorySystem.java b/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/shared/MavenRepositorySystem.java
 new file mode 100644
-index 0000000..fd2f0a9
+index 0000000..965e5cd
 --- /dev/null
-+++ b/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/facade/MavenRepositorySystem.java
++++ b/tycho-bundles/org.eclipse.tycho.core.shared/src/main/java/org/eclipse/tycho/core/shared/MavenRepositorySystem.java
 @@ -0,0 +1,19 @@
 +/*******************************************************************************
 + * Copyright (c) 2014 Red Hat Inc.
@@ -115,7 +115,7 @@ index 0000000..fd2f0a9
 + * Contributors:
 + *     Red Hat Inc. - initial API and implementation
 + *******************************************************************************/
-+package org.eclipse.tycho.core.facade;
++package org.eclipse.tycho.core.shared;
 +
 +import java.io.File;
 +
@@ -168,14 +168,14 @@ index 9b6d270..8779841 100644
  
      private LocalMetadataRepository createRepository(File location) throws ProvisionException {
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.maven.repository/src/main/java/org/eclipse/tycho/repository/local/LocalArtifactRepository.java b/tycho-bundles/org.eclipse.tycho.p2.maven.repository/src/main/java/org/eclipse/tycho/repository/local/LocalArtifactRepository.java
-index 36946bf..ae435c2 100644
+index 36946bf..0e2d330 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.maven.repository/src/main/java/org/eclipse/tycho/repository/local/LocalArtifactRepository.java
 +++ b/tycho-bundles/org.eclipse.tycho.p2.maven.repository/src/main/java/org/eclipse/tycho/repository/local/LocalArtifactRepository.java
 @@ -23,6 +23,7 @@ import java.util.Set;
  import org.eclipse.equinox.p2.core.IProvisioningAgent;
  import org.eclipse.equinox.p2.metadata.IArtifactKey;
  import org.eclipse.equinox.p2.repository.artifact.IArtifactDescriptor;
-+import org.eclipse.tycho.core.facade.MavenRepositorySystem;
++import org.eclipse.tycho.core.shared.MavenRepositorySystem;
  import org.eclipse.tycho.p2.maven.repository.Activator;
  import org.eclipse.tycho.p2.maven.repository.xmlio.ArtifactsIO;
  import org.eclipse.tycho.p2.repository.GAV;
@@ -200,14 +200,14 @@ index 36946bf..ae435c2 100644
  
      public LocalArtifactRepository(IProvisioningAgent agent, LocalRepositoryP2Indices localRepoIndices,
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.maven.repository/src/main/java/org/eclipse/tycho/repository/local/LocalArtifactRepositoryFactory.java b/tycho-bundles/org.eclipse.tycho.p2.maven.repository/src/main/java/org/eclipse/tycho/repository/local/LocalArtifactRepositoryFactory.java
-index fc99483..187d84f 100644
+index fc99483..be2ce88 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.maven.repository/src/main/java/org/eclipse/tycho/repository/local/LocalArtifactRepositoryFactory.java
 +++ b/tycho-bundles/org.eclipse.tycho.p2.maven.repository/src/main/java/org/eclipse/tycho/repository/local/LocalArtifactRepositoryFactory.java
 @@ -18,6 +18,7 @@ import org.eclipse.core.runtime.IProgressMonitor;
  import org.eclipse.equinox.p2.core.ProvisionException;
  import org.eclipse.equinox.p2.repository.artifact.IArtifactRepository;
  import org.eclipse.equinox.p2.repository.artifact.spi.ArtifactRepositoryFactory;
-+import org.eclipse.tycho.core.facade.MavenRepositorySystem;
++import org.eclipse.tycho.core.shared.MavenRepositorySystem;
  import org.eclipse.tycho.p2.maven.repository.Activator;
  import org.eclipse.tycho.p2.repository.LocalRepositoryP2Indices;
  import org.eclipse.tycho.repository.util.internal.RepositoryFactoryTools;
@@ -221,14 +221,14 @@ index fc99483..187d84f 100644
          }
          return null;
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.maven.repository/src/main/java/org/eclipse/tycho/repository/local/index/LocalRepositoryP2IndicesImpl.java b/tycho-bundles/org.eclipse.tycho.p2.maven.repository/src/main/java/org/eclipse/tycho/repository/local/index/LocalRepositoryP2IndicesImpl.java
-index e727bdb..6f4f860 100644
+index 2a746f2..7b9983a 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.maven.repository/src/main/java/org/eclipse/tycho/repository/local/index/LocalRepositoryP2IndicesImpl.java
 +++ b/tycho-bundles/org.eclipse.tycho.p2.maven.repository/src/main/java/org/eclipse/tycho/repository/local/index/LocalRepositoryP2IndicesImpl.java
 @@ -14,6 +14,7 @@ package org.eclipse.tycho.repository.local.index;
  import java.io.File;
  
- import org.eclipse.tycho.core.facade.MavenContext;
-+import org.eclipse.tycho.core.facade.MavenRepositorySystem;
+ import org.eclipse.tycho.core.shared.MavenContext;
++import org.eclipse.tycho.core.shared.MavenRepositorySystem;
  import org.eclipse.tycho.locking.facade.FileLockService;
  import org.eclipse.tycho.p2.repository.LocalRepositoryP2Indices;
  import org.eclipse.tycho.p2.repository.TychoRepositoryIndex;
@@ -258,7 +258,7 @@ index e727bdb..6f4f860 100644
 +
  }
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl.test/src/test/java/org/eclipse/tycho/p2/remote/RemoteAgentMavenMirrorsTest.java b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl.test/src/test/java/org/eclipse/tycho/p2/remote/RemoteAgentMavenMirrorsTest.java
-index 7fdec5e..b4a80cb 100644
+index 432ec09..4e5566a 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl.test/src/test/java/org/eclipse/tycho/p2/remote/RemoteAgentMavenMirrorsTest.java
 +++ b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl.test/src/test/java/org/eclipse/tycho/p2/remote/RemoteAgentMavenMirrorsTest.java
 @@ -29,6 +29,7 @@ import org.eclipse.tycho.p2.impl.test.ResourceUtil;
@@ -279,11 +279,11 @@ index 7fdec5e..b4a80cb 100644
          mavenRepositorySettings = new MavenRepositorySettingsStub();
          subject = new RemoteAgent(mavenContext, mavenRepositorySettings, OFFLINE);
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl.test/src/test/java/org/eclipse/tycho/p2/remote/RemoteAgentMetadataRepositoryCacheTest.java b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl.test/src/test/java/org/eclipse/tycho/p2/remote/RemoteAgentMetadataRepositoryCacheTest.java
-index 9fbecb6..0aa6d61 100644
+index ae31862..14b8f85 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl.test/src/test/java/org/eclipse/tycho/p2/remote/RemoteAgentMetadataRepositoryCacheTest.java
 +++ b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl.test/src/test/java/org/eclipse/tycho/p2/remote/RemoteAgentMetadataRepositoryCacheTest.java
 @@ -26,6 +26,7 @@ import org.eclipse.equinox.p2.repository.metadata.IMetadataRepositoryManager;
- import org.eclipse.tycho.core.facade.MavenContextImpl;
+ import org.eclipse.tycho.core.shared.MavenContextImpl;
  import org.eclipse.tycho.test.util.HttpServer;
  import org.eclipse.tycho.test.util.LogVerifier;
 +import org.eclipse.tycho.test.util.MavenRepositorySystemStub;
@@ -327,7 +327,7 @@ index 50fe92f..3044e97 100644
  
      @Test
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl.test/src/test/java/org/eclipse/tycho/p2/target/TestResolverFactory.java b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl.test/src/test/java/org/eclipse/tycho/p2/target/TestResolverFactory.java
-index 751791c..23d8481 100644
+index d982042..127ae11 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl.test/src/test/java/org/eclipse/tycho/p2/target/TestResolverFactory.java
 +++ b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl.test/src/test/java/org/eclipse/tycho/p2/target/TestResolverFactory.java
 @@ -28,6 +28,7 @@ import org.eclipse.tycho.p2.target.facade.TargetPlatformFactory;
@@ -357,7 +357,7 @@ index 751791c..23d8481 100644
  
      // TODO use TemporaryLocalMavenRepository
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/resolver/P2ResolverFactoryImpl.java b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/resolver/P2ResolverFactoryImpl.java
-index 0155593..12d38a5 100644
+index a74d4d5..2f903a1 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/resolver/P2ResolverFactoryImpl.java
 +++ b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/resolver/P2ResolverFactoryImpl.java
 @@ -33,7 +33,7 @@ public class P2ResolverFactoryImpl implements P2ResolverFactory {
@@ -390,7 +390,7 @@ index 0155593..12d38a5 100644
          }
          return localArtifactRepository;
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/PomDependencyCollectorImpl.java b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/PomDependencyCollectorImpl.java
-index eb20440..3b903df 100644
+index 8bee7ba..f2b07a5 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/PomDependencyCollectorImpl.java
 +++ b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/PomDependencyCollectorImpl.java
 @@ -44,7 +44,7 @@ public class PomDependencyCollectorImpl implements PomDependencyCollector {
@@ -403,14 +403,14 @@ index eb20440..3b903df 100644
  
      public void setProjectLocation(File projectLocation) {
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/TargetPlatformBundlePublisher.java b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/TargetPlatformBundlePublisher.java
-index 8281167..b10929a 100644
+index 0195871..44a0f30 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/TargetPlatformBundlePublisher.java
 +++ b/tycho-bundles/org.eclipse.tycho.p2.resolver.impl/src/main/java/org/eclipse/tycho/p2/target/TargetPlatformBundlePublisher.java
 @@ -25,6 +25,7 @@ import org.eclipse.equinox.p2.publisher.PublisherResult;
  import org.eclipse.equinox.p2.publisher.eclipse.BundlesAction;
  import org.eclipse.equinox.p2.repository.artifact.IArtifactDescriptor;
- import org.eclipse.tycho.core.facade.MavenLogger;
-+import org.eclipse.tycho.core.facade.MavenRepositorySystem;
+ import org.eclipse.tycho.core.shared.MavenLogger;
++import org.eclipse.tycho.core.shared.MavenRepositorySystem;
  import org.eclipse.tycho.p2.impl.publisher.MavenPropertiesAdvice;
  import org.eclipse.tycho.p2.impl.publisher.repo.TransientArtifactRepository;
  import org.eclipse.tycho.p2.metadata.IArtifactFacade;
@@ -449,14 +449,14 @@ index 8281167..b10929a 100644
          }
  
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.resolver.shared/src/main/java/org/eclipse/tycho/p2/repository/LocalRepositoryP2Indices.java b/tycho-bundles/org.eclipse.tycho.p2.resolver.shared/src/main/java/org/eclipse/tycho/p2/repository/LocalRepositoryP2Indices.java
-index 2122578..54c46fc 100644
+index 2122578..5e4a01e 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.resolver.shared/src/main/java/org/eclipse/tycho/p2/repository/LocalRepositoryP2Indices.java
 +++ b/tycho-bundles/org.eclipse.tycho.p2.resolver.shared/src/main/java/org/eclipse/tycho/p2/repository/LocalRepositoryP2Indices.java
 @@ -13,6 +13,8 @@ package org.eclipse.tycho.p2.repository;
  
  import java.io.File;
  
-+import org.eclipse.tycho.core.facade.MavenRepositorySystem;
++import org.eclipse.tycho.core.shared.MavenRepositorySystem;
 +
  /**
   * This service provides access to the tycho p2 index files of the local maven repository.
@@ -469,14 +469,14 @@ index 2122578..54c46fc 100644
 +
  }
 diff --git a/tycho-bundles/org.eclipse.tycho.p2.resolver.shared/src/main/java/org/eclipse/tycho/p2/repository/LocalRepositoryReader.java b/tycho-bundles/org.eclipse.tycho.p2.resolver.shared/src/main/java/org/eclipse/tycho/p2/repository/LocalRepositoryReader.java
-index b5c8c55..7f6aa58 100644
+index b5c8c55..8842af3 100644
 --- a/tycho-bundles/org.eclipse.tycho.p2.resolver.shared/src/main/java/org/eclipse/tycho/p2/repository/LocalRepositoryReader.java
 +++ b/tycho-bundles/org.eclipse.tycho.p2.resolver.shared/src/main/java/org/eclipse/tycho/p2/repository/LocalRepositoryReader.java
 @@ -14,54 +14,27 @@ import java.io.File;
  import java.lang.reflect.Constructor;
  import java.lang.reflect.Method;
  
-+import org.eclipse.tycho.core.facade.MavenRepositorySystem;
++import org.eclipse.tycho.core.shared.MavenRepositorySystem;
 +
  public class LocalRepositoryReader implements RepositoryReader {
  
@@ -539,14 +539,14 @@ index b5c8c55..7f6aa58 100644
      }
  }
 diff --git a/tycho-bundles/org.eclipse.tycho.test.utils/src/main/java/org/eclipse/tycho/repository/local/testutil/TemporaryLocalMavenRepository.java b/tycho-bundles/org.eclipse.tycho.test.utils/src/main/java/org/eclipse/tycho/repository/local/testutil/TemporaryLocalMavenRepository.java
-index f7cc92c..d6f3fec 100644
+index f7cc92c..7bc8a95 100644
 --- a/tycho-bundles/org.eclipse.tycho.test.utils/src/main/java/org/eclipse/tycho/repository/local/testutil/TemporaryLocalMavenRepository.java
 +++ b/tycho-bundles/org.eclipse.tycho.test.utils/src/main/java/org/eclipse/tycho/repository/local/testutil/TemporaryLocalMavenRepository.java
 @@ -14,9 +14,11 @@ import java.io.File;
  import java.io.IOException;
  
  import org.eclipse.equinox.internal.p2.core.helpers.FileUtils;
-+import org.eclipse.tycho.core.facade.MavenRepositorySystem;
++import org.eclipse.tycho.core.shared.MavenRepositorySystem;
  import org.eclipse.tycho.p2.repository.LocalRepositoryP2Indices;
  import org.eclipse.tycho.repository.local.LocalArtifactRepository;
  import org.eclipse.tycho.repository.local.index.LocalRepositoryP2IndicesImpl;
@@ -565,7 +565,7 @@ index f7cc92c..d6f3fec 100644
      }
 diff --git a/tycho-bundles/org.eclipse.tycho.test.utils/src/main/java/org/eclipse/tycho/test/util/MavenRepositorySystemStub.java b/tycho-bundles/org.eclipse.tycho.test.utils/src/main/java/org/eclipse/tycho/test/util/MavenRepositorySystemStub.java
 new file mode 100644
-index 0000000..5d5f815
+index 0000000..7e020da
 --- /dev/null
 +++ b/tycho-bundles/org.eclipse.tycho.test.utils/src/main/java/org/eclipse/tycho/test/util/MavenRepositorySystemStub.java
 @@ -0,0 +1,30 @@
@@ -583,7 +583,7 @@ index 0000000..5d5f815
 +
 +import java.io.File;
 +
-+import org.eclipse.tycho.core.facade.MavenRepositorySystem;
++import org.eclipse.tycho.core.shared.MavenRepositorySystem;
 +import org.eclipse.tycho.p2.repository.RepositoryLayoutHelper;
 +
 +public class MavenRepositorySystemStub implements MavenRepositorySystem {
@@ -601,7 +601,7 @@ index 0000000..5d5f815
 +}
 diff --git a/tycho-core/src/main/java/org/eclipse/tycho/osgi/adapters/MavenRepositorySystemAdapter.java b/tycho-core/src/main/java/org/eclipse/tycho/osgi/adapters/MavenRepositorySystemAdapter.java
 new file mode 100644
-index 0000000..7c22f62
+index 0000000..e1d46fa
 --- /dev/null
 +++ b/tycho-core/src/main/java/org/eclipse/tycho/osgi/adapters/MavenRepositorySystemAdapter.java
 @@ -0,0 +1,37 @@
@@ -623,7 +623,7 @@ index 0000000..7c22f62
 +import org.apache.maven.artifact.resolver.ArtifactResolutionRequest;
 +import org.apache.maven.artifact.resolver.ArtifactResolutionResult;
 +import org.apache.maven.repository.RepositorySystem;
-+import org.eclipse.tycho.core.facade.MavenRepositorySystem;
++import org.eclipse.tycho.core.shared.MavenRepositorySystem;
 +
 +public class MavenRepositorySystemAdapter implements MavenRepositorySystem {
 +
@@ -643,7 +643,7 @@ index 0000000..7c22f62
 +
 +}
 diff --git a/tycho-core/src/main/java/org/eclipse/tycho/osgi/configuration/MavenContextConfigurator.java b/tycho-core/src/main/java/org/eclipse/tycho/osgi/configuration/MavenContextConfigurator.java
-index cde12ad..dd907a2 100644
+index e5837e2..137dcb1 100644
 --- a/tycho-core/src/main/java/org/eclipse/tycho/osgi/configuration/MavenContextConfigurator.java
 +++ b/tycho-core/src/main/java/org/eclipse/tycho/osgi/configuration/MavenContextConfigurator.java
 @@ -16,6 +16,7 @@ import java.util.Properties;
@@ -655,8 +655,8 @@ index cde12ad..dd907a2 100644
  import org.apache.maven.settings.Settings;
  import org.codehaus.plexus.component.annotations.Component;
 @@ -26,6 +27,7 @@ import org.eclipse.sisu.equinox.embedder.EquinoxLifecycleListener;
- import org.eclipse.tycho.core.facade.MavenContext;
- import org.eclipse.tycho.core.facade.MavenContextImpl;
+ import org.eclipse.tycho.core.shared.MavenContext;
+ import org.eclipse.tycho.core.shared.MavenContextImpl;
  import org.eclipse.tycho.osgi.adapters.MavenLoggerAdapter;
 +import org.eclipse.tycho.osgi.adapters.MavenRepositorySystemAdapter;
  

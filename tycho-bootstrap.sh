@@ -3,8 +3,8 @@
 . $(pwd)/tycho-scripts.sh
 
 eclipse_bootstrap=$1
-preV='0.21.0'
-v='0.21.0-SNAPSHOT'
+preV='0.22.0'
+v='0.22.0-SNAPSHOT'
 osgiV='3.10.0.v20140328-1811'
 fp2V='0.0.1-SNAPSHOT'
 bundles=()
@@ -134,3 +134,6 @@ cp "${tbeTargetDir}/tycho-bundles-external-${v}.zip" ${loc}
 cp 'tycho-bundles/tycho-bundles-external/pom.xml' "${loc}/tycho-bundles-external-${v}.pom"
 
 sed -i "s/<equinox\(.*\)VersionMaven>.*<\/equinox\(.*\)VersionMaven>/<equinox\1VersionMaven>${osgiV}<\/equinox\1VersionMaven>/" pom.xml
+# xmvn-p2-installer-plugin needs to find the org.eclipse.osgi bundle
+sed -i "s/<groupId>org.eclipse.osgi<\/groupId>/<groupId>org.eclipse.tycho<\/groupId>/
+        /<artifactId>org.eclipse.osgi<\/artifactId>/ a <version>${osgiV}<\/version>" fedoraproject-p2/xmvn-p2-installer-plugin/pom.xml
