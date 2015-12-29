@@ -101,6 +101,7 @@ BuildRequires:  jetty-servlet
 BuildRequires:  maven-shared-utils
 BuildRequires:  mockito
 BuildRequires:	zip
+BuildRequires:	eclipse-license
 Requires:       apache-commons-exec
 Requires:       decentxml
 Requires:       maven-local >= 4.2.0
