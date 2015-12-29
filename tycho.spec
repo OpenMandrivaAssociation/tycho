@@ -24,7 +24,7 @@
 
 Name:           tycho
 Version:        0.22.0
-Release:        7%{?dist}
+Release:        7.2
 Summary:        Plugins and extensions for building Eclipse plugins and OSGI bundles with Maven
 
 Group:          System/Libraries
@@ -211,6 +211,13 @@ sed -i '/^<unit id=.*$/d' tycho-bundles/tycho-bundles-target/tycho-bundles-targe
 # we don't have org.apache.commons:commons-compress:jar:sources
 %pom_xpath_remove "pom:dependency[pom:classifier='sources' and pom:artifactId='commons-compress']" tycho-p2/tycho-p2-director-plugin
 
+# Previously, JUnit would re-export Hamcrest
+# Now modules using org.hamcrest.core must state the requirement explicitly
+for mod in tycho-bundles/org.eclipse.tycho.{p2.{maven.repository.tests,resolver.impl.test,tools.tests},test.utils,core.shared.tests}; do
+  sed -i 's/^Require-Bundle://
+          /org\.junit/ i Require-Bundle: org.hamcrest.core,' \
+          $mod/META-INF/MANIFEST.MF
+done
 
 # Bootstrap Build
 %if %{eclipse_bootstrap}
