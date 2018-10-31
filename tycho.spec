@@ -24,7 +24,7 @@
 
 Name:           tycho
 Version:        0.22.0
-Release:        7.2
+Release:        7.3
 Summary:        Plugins and extensions for building Eclipse plugins and OSGI bundles with Maven
 
 Group:          System/Libraries
