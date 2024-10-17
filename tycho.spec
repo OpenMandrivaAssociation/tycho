@@ -30,7 +30,7 @@ Summary:        Plugins and extensions for building Eclipse plugins and OSGI bun
 Group:          System/Libraries
 # license file is missing but all files having some licensing information are ASL 2.0
 License:        ASL 2.0 and EPL
-URL:            http://eclipse.org/tycho
+URL:            https://eclipse.org/tycho
 Source0:        http://git.eclipse.org/c/tycho/org.eclipse.tycho.git/snapshot/org.eclipse.tycho-tycho-0.22.0.tar.bz2
 
 # this is a workaround for maven-plugin-plugin changes that happened after
